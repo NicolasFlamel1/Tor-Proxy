@@ -454,32 +454,32 @@ int main(int argc, char *argv[]) {
 	// Initialize Tor port
 	uint16_t torPort;
 	
-	// Initialize HTTP request callback argument
-	tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> httpRequestCallbackArgument(&noVerify, &listenAddress, &listenPort, tlsContext.get(), &torAddress, &torPort);
+	// Initialize HTTP server request callback argument
+	tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *> httpServerRequestCallbackArgument(&noVerify, &listenAddress, &listenPort, tlsContext.get(), &torAddress, &torPort);
 	
-	// Set HTTP request callback
+	// Set HTTP server request callback
 	evhttp_set_gencb(httpServer.get(), ([](evhttp_request *request, void *argument) {
 	
-		// Get HTTP request callback argument from argument
-		tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *httpRequestCallbackArgument = reinterpret_cast<tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *>(argument);
+		// Get HTTP server request callback argument from argument
+		tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *httpServerRequestCallbackArgument = reinterpret_cast<tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *>(argument);
 		
-		// Get no verify from HTTP request callback argument
-		const bool *noVerify = get<0>(*httpRequestCallbackArgument);
+		// Get no verify from HTTP server request callback argument
+		const bool *noVerify = get<0>(*httpServerRequestCallbackArgument);
 		
-		// Get listen address from HTTP request callback argument
-		const string *listenAddress = get<1>(*httpRequestCallbackArgument);
+		// Get listen address from HTTP server request callback argument
+		const string *listenAddress = get<1>(*httpServerRequestCallbackArgument);
 		
-		// Get listen port from HTTP request callback argument
-		const uint16_t *listenPort = get<2>(*httpRequestCallbackArgument);
+		// Get listen port from HTTP server request callback argument
+		const uint16_t *listenPort = get<2>(*httpServerRequestCallbackArgument);
 		
-		// Get TLS context from HTTP request callback argument
-		SSL_CTX *tlsContext = get<3>(*httpRequestCallbackArgument);
+		// Get TLS context from HTTP server request callback argument
+		SSL_CTX *tlsContext = get<3>(*httpServerRequestCallbackArgument);
 	
-		// Get Tor address from HTTP request callback argument
-		const string *torAddress = get<4>(*httpRequestCallbackArgument);
+		// Get Tor address from HTTP server request callback argument
+		const string *torAddress = get<4>(*httpServerRequestCallbackArgument);
 		
-		// Get Tor port from HTTP request callback argument
-		const uint16_t *torPort = get<5>(*httpRequestCallbackArgument);
+		// Get Tor port from HTTP server request callback argument
+		const uint16_t *torPort = get<5>(*httpServerRequestCallbackArgument);
 		
 		// Check if request doesn't have a URI
 		if(!evhttp_request_get_uri(request) || !strlen(evhttp_request_get_uri(request))) {
@@ -629,6 +629,7 @@ int main(int argc, char *argv[]) {
 										// Reply with internal server error to request
 										evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
 									}
+									
 									// Otherwise check if removing data from input failed
 									else if(evbuffer_drain(input, length)) {
 									
@@ -1887,7 +1888,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		
-	}), &httpRequestCallbackArgument);
+	}), &httpServerRequestCallbackArgument);
 	
 	// Check if creating Tor configuration failed
 	shared_ptr<tor_main_configuration_t> torConfiguration(tor_main_configuration_new(), tor_main_configuration_free);
@@ -2150,12 +2151,12 @@ int main(int argc, char *argv[]) {
 					
 					if(length >= sizeof(socksInformationMessage) - sizeof('\0') && !memcmp(data, socksInformationMessage, sizeof(socksInformationMessage) - sizeof('\0'))) {
 					
-						// Check if getting SOCKS host delimiter failed
-						const uint8_t *hostDelimiter = reinterpret_cast<uint8_t *>(memchr(&data[sizeof(socksInformationMessage) - sizeof('\0')], ':', length - (sizeof(socksInformationMessage) - sizeof('\0'))));
-						if(!hostDelimiter) {
+						// Check if getting SOCKS address delimiter failed
+						const uint8_t *addressDelimiter = reinterpret_cast<uint8_t *>(memchr(&data[sizeof(socksInformationMessage) - sizeof('\0')], ':', length - (sizeof(socksInformationMessage) - sizeof('\0'))));
+						if(!addressDelimiter) {
 						
 							// Display message
-							cout << "Getting SOCKS host delimiter failed" << endl;
+							cout << "Getting SOCKS address delimiter failed" << endl;
 							
 							// Remove Tor connection callbacks
 							bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2168,13 +2169,13 @@ int main(int argc, char *argv[]) {
 						else {
 						
 							// Get SOCKS address
-							string socksAddress(reinterpret_cast<char *>(&data[sizeof(socksInformationMessage) - sizeof('\0')]), hostDelimiter - &data[sizeof(socksInformationMessage) - sizeof('\0')]);
+							string socksAddress(reinterpret_cast<char *>(&data[sizeof(socksInformationMessage) - sizeof('\0')]), addressDelimiter - &data[sizeof(socksInformationMessage) - sizeof('\0')]);
 							
 							// Check if SOCKS address is invalid
 							if(socksAddress.empty()) {
 							
 								// Display message
-								cout << "SOCKS host is invalid" << endl;
+								cout << "SOCKS address is invalid" << endl;
 								
 								// Remove Tor connection callbacks
 								bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2270,17 +2271,14 @@ int main(int argc, char *argv[]) {
 											// Otherwise
 											else {
 											
-												// Set Tor address to SOCKS address
-												*torAddress = socksAddress;
-												
-												// Set Tor port to port number
-												*torPort = portNumber;
-												
 												// Check if binding HTTP server to listen address and listen port failed
 												if(evhttp_bind_socket(httpServer, listenAddress->c_str(), *listenPort)) {
 												
 													// Display message
 													cout << "Binding HTTP server to " << *listenAddress << ":" << to_string(*listenPort) << " failed" << endl;
+													
+													// Remove Tor connection callbacks
+													bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
 												
 													// Exit failure
 													quick_exit(EXIT_FAILURE);
@@ -2288,23 +2286,29 @@ int main(int argc, char *argv[]) {
 												
 												// Otherwise
 												else {
+												
+													// Set Tor address to SOCKS address
+													*torAddress = socksAddress;
+													
+													// Set Tor port to port number
+													*torPort = portNumber;
 											
 													// Display message
-													cout << "Listening at " << *listenAddress << ":" << to_string(*listenPort) << endl;
+													cout << "Listening at http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << endl;
 													
 													// Check if listen address is an IPv6 address
 													char temp[sizeof(in6_addr)];
 													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 													
 														// Display message
-														cout << "Example usage: http://[" << *listenAddress << "]:" << to_string(*listenPort) << "/https://check.torproject.org" << endl;
+														cout << "Example usage: http://[" << *listenAddress << "]" << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 													
 													// Otherwise
 													else {
 													
 														// Display message
-														cout << "Example usage: http://" << *listenAddress << ":" << to_string(*listenPort) << "/https://check.torproject.org" << endl;
+														cout << "Example usage: http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 												}
 											}
@@ -2377,7 +2381,7 @@ int main(int argc, char *argv[]) {
 		// Disable Geo IPv6
 		"--GeoIPv6File", "",
 		
-		// Disabe configuration file
+		// Disable configuration file
 		"--torrc-file", "",
 		
 		// Ignore missing configuration file
