@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <filesystem>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
@@ -2360,6 +2361,30 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	
+	// Seed random number generator
+	srand(time(nullptr));
+	
+	// Loop until a unique temporary directory is created
+	filesystem::path temporaryDirectory;
+	while(true) {
+	
+		// Initialize random string
+		stringstream randomString;
+		
+		// Fill random string
+		randomString << hex << rand();
+		
+		// Set temporary directory
+		temporaryDirectory = filesystem::temp_directory_path() / randomString.str();
+		
+		// Check if creating temporary directory was successful
+		if(filesystem::create_directory(temporaryDirectory)) {
+		
+			// Break
+			break;
+		}
+	}
+	
 	// Set Tor arguments
 	const char *torArguments[] = {
 	
@@ -2387,6 +2412,9 @@ int main(int argc, char *argv[]) {
 		// Ignore missing configuration file
 		"--ignore-missing-torrc",
 		
+		// Data directory
+		"--DataDirectory", temporaryDirectory.string().c_str(),
+		
 		// End
 		nullptr
 	};
@@ -2396,6 +2424,9 @@ int main(int argc, char *argv[]) {
 	
 		// Display message
 		cout << "Configuring Tor configuration with the Tor arguments failed" << endl;
+		
+		// Remove temporary directory
+		filesystem::remove_all(temporaryDirectory);
 	
 		// Return failure
 		return EXIT_FAILURE;
@@ -2405,7 +2436,7 @@ int main(int argc, char *argv[]) {
 	atomic_bool threadError(false);
 	
 	// Create Tor thread
-	thread torThread(([&eventBase, &torConfiguration, &threadError]() {
+	thread torThread(([&eventBase, &torConfiguration, &temporaryDirectory, &threadError]() {
 	
 		// Check if Windows
 		#ifdef _WIN32
@@ -2454,6 +2485,9 @@ int main(int argc, char *argv[]) {
 		
 			// Display message
 			cout << "Breaking out of event dispatch loop failed" << endl;
+			
+			// Remove temporary directory
+			filesystem::remove_all(temporaryDirectory);
 		
 			// Exit failure
 			quick_exit(EXIT_FAILURE);
@@ -2465,6 +2499,9 @@ int main(int argc, char *argv[]) {
 	
 		// Display message
 		cout << "Running event dispatch loop failed" << endl;
+		
+		// Remove temporary directory
+		filesystem::remove_all(temporaryDirectory);
 	
 		// Exit failure
 		quick_exit(EXIT_FAILURE);
@@ -2494,6 +2531,9 @@ int main(int argc, char *argv[]) {
 			
 				// Set error occured
 				errorOccured = true;
+				
+				// Remove temporary directory
+				filesystem::remove_all(temporaryDirectory);
 			
 				// Exit failure
 				quick_exit(EXIT_FAILURE);
@@ -2505,6 +2545,16 @@ int main(int argc, char *argv[]) {
 		
 			// Check if a thread error occured
 			if(threadError.load()) {
+			
+				// Remove temporary directory
+				filesystem::remove_all(temporaryDirectory);
+			
+				// Return failure
+				return EXIT_FAILURE;
+			}
+			
+			// Check if removing temporary directory failed
+			if(!filesystem::remove_all(temporaryDirectory)) {
 			
 				// Return failure
 				return EXIT_FAILURE;
