@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
 						if(!errorOccured) {
 						
 							// Check if port number is valid
-							if(portNumber < 1 || portNumber <= UINT16_MAX) {
+							if(portNumber >= 1 && portNumber <= UINT16_MAX) {
 							
 								// Set listen port
 								listenPort = portNumber;
