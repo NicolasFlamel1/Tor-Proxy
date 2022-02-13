@@ -15,7 +15,7 @@ all:
 	
 # Make clean
 clean:
-	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1m.zip" "./openssl-OpenSSL_1_1_1m" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.9.zip" "./tor-tor-0.4.6.9" "./tor"
+	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1m.zip" "./openssl-OpenSSL_1_1_1m" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.10.zip" "./tor-tor-0.4.6.10" "./tor"
 
 # Make run
 run:
@@ -46,8 +46,8 @@ dependencies:
 	cd "./zlib" && "./configure" --prefix="$(CURDIR)/zlib/dist" && make && make install
 	
 	# Tor
-	wget "https://github.com/torproject/tor/archive/refs/tags/tor-0.4.6.9.zip";
-	unzip "./tor-0.4.6.9.zip"
-	rm "./tor-0.4.6.9.zip"
-	mv "./tor-tor-0.4.6.9" "./tor"
+	wget "https://github.com/torproject/tor/archive/refs/tags/tor-0.4.6.10.zip";
+	unzip "./tor-0.4.6.10.zip"
+	rm "./tor-0.4.6.10.zip"
+	mv "./tor-tor-0.4.6.10" "./tor"
 	cd "tor" && "./autogen.sh" && "./configure" --disable-gcc-hardening --disable-linker-hardening --disable-module-relay --disable-module-dirauth --enable-static-openssl --with-openssl-dir="$(CURDIR)/openssl/dist" --enable-static-libevent --with-libevent-dir="$(CURDIR)/libevent/dist" --enable-static-zlib --with-zlib-dir="$(CURDIR)/zlib/dist" --disable-asciidoc --disable-system-torrc --disable-nss --disable-systemd --disable-lzma --disable-zstd --disable-seccomp --disable-libscrypt --disable-unittests && make

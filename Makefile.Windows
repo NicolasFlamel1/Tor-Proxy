@@ -15,7 +15,7 @@ all:
 	
 # Make clean
 clean:
-	rm -rf "./$(PROGRAM_NAME).exe" "./OpenSSL_1_1_1m.zip" "./openssl-OpenSSL_1_1_1m" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.9.zip" "./tor-tor-0.4.6.9" "./tor"
+	rm -rf "./$(PROGRAM_NAME).exe" "./OpenSSL_1_1_1m.zip" "./openssl-OpenSSL_1_1_1m" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.10.zip" "./tor-tor-0.4.6.10" "./tor"
 
 # Make run
 run:
@@ -46,8 +46,8 @@ dependencies:
 	cd "./zlib" && sed -i "s/PREFIX =/PREFIX = x86_64-w64-mingw32-\nBINARY_PATH = .\/dist\/bin\nINCLUDE_PATH = .\/dist\/include\nLIBRARY_PATH = .\/dist\/lib/" "./win32/Makefile.gcc" && make -f win32/Makefile.gcc && sed -i "s/$$(PREFIX)gcc/\$$(PREFIX)gcc-posix/" "./win32/Makefile.gcc" && make -f win32/Makefile.gcc install
 	
 	# Tor
-	wget "https://github.com/torproject/tor/archive/refs/tags/tor-0.4.6.9.zip";
-	unzip "./tor-0.4.6.9.zip"
-	rm "./tor-0.4.6.9.zip"
-	mv "./tor-tor-0.4.6.9" "./tor"
+	wget "https://github.com/torproject/tor/archive/refs/tags/tor-0.4.6.10.zip";
+	unzip "./tor-0.4.6.10.zip"
+	rm "./tor-0.4.6.10.zip"
+	mv "./tor-tor-0.4.6.10" "./tor"
 	cd "tor" && "./autogen.sh" && "./configure" --disable-gcc-hardening --disable-linker-hardening --disable-module-relay --disable-module-dirauth --disable-tool-name-check --host=x86_64-w64-mingw32 --enable-static-openssl --with-openssl-dir="$(CURDIR)/openssl/dist" --enable-static-libevent --with-libevent-dir="$(CURDIR)/libevent/dist" --enable-static-zlib --with-zlib-dir="$(CURDIR)/zlib/dist" --disable-asciidoc --disable-system-torrc --disable-nss --disable-systemd --disable-lzma --disable-zstd --disable-seccomp --disable-libscrypt --disable-unittests CC=x86_64-w64-mingw32-gcc-posix && make
