@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <signal.h>
 #include <thread>
 #include "event2/buffer.h"
@@ -130,6 +131,9 @@ static const int HTTP_BAD_GATEWAY = 502;
 
 // Check Tor connected interval microseconds
 static const decltype(timeval::tv_usec) CHECK_TOR_CONNECTED_INTERVAL_MICROSECONDS = 100 * 1000;
+
+// Temporary directory length
+static const size_t TEMPORARY_DIRECTORY_LENGTH = 8;
 
 // SOCKS state
 enum class SocksState {
@@ -449,6 +453,9 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	
+	// Set HTTP server to only all types of requests
+	evhttp_set_allowed_methods(httpServer.get(), EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_OPTIONS | EVHTTP_REQ_TRACE | EVHTTP_REQ_CONNECT | EVHTTP_REQ_PATCH);
+	
 	// Initialize Tor address
 	string torAddress;
 	
@@ -623,6 +630,9 @@ int main(int argc, char *argv[]) {
 									// Check if getting data from input failed
 									uint8_t data[length];
 									if(evbuffer_copyout(input, data, length) == -1) {
+									
+										// Remove data from input
+										evbuffer_drain(input, length);
 									
 										// Remove SOCKS buffer callbacks
 										bufferevent_setcb(socksBuffer.get(), nullptr, nullptr, nullptr, nullptr);
@@ -940,14 +950,14 @@ int main(int argc, char *argv[]) {
 																													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																													
 																														// Set value
-																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + "/" + header->value;
+																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Otherwise
 																													else {
 																												
 																														// Set value
-																														value = "http://" + *listenAddress + ":" + to_string(*listenPort) + "/" + header->value;
+																														value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Check if setting request's header to the header with the value failed
@@ -1128,14 +1138,14 @@ int main(int argc, char *argv[]) {
 																													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																													
 																														// Set value
-																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + "/" + header->value;
+																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Otherwise
 																													else {
 																												
 																														// Set value
-																														value = "http://" + *listenAddress + ":" + to_string(*listenPort) + "/" + header->value;
+																														value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Check if setting request's header to the header with the value failed
@@ -1232,7 +1242,7 @@ int main(int argc, char *argv[]) {
 																						}));
 																						
 																						// Check if setting outgoing request's host header failed
-																						if(evhttp_add_header(evhttp_request_get_output_headers(outgoingRequest.get()), "Host", (evhttp_uri_get_host(uri.get()) + ((evhttp_uri_get_port(uri.get()) != NO_URI_PORT) ? ":" + to_string(evhttp_uri_get_port(uri.get())) : "")).c_str())) {
+																						if(evhttp_add_header(evhttp_request_get_output_headers(outgoingRequest.get()), "Host", (evhttp_uri_get_host(uri.get()) + ((evhttp_uri_get_port(uri.get()) != NO_URI_PORT) ? ':' + to_string(evhttp_uri_get_port(uri.get())) : "")).c_str())) {
 																						
 																							// Reply with internal server error to request
 																							evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
@@ -1473,14 +1483,14 @@ int main(int argc, char *argv[]) {
 																									if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																									
 																										// Set value
-																										value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + "/" + header->value;
+																										value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																									}
 																									
 																									// Otherwise
 																									else {
 																								
 																										// Set value
-																										value = "http://" + *listenAddress + ":" + to_string(*listenPort) + "/" + header->value;
+																										value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																									}
 																									
 																									// Check if setting request's header to the header with the value failed
@@ -1617,7 +1627,7 @@ int main(int argc, char *argv[]) {
 																								if(!strcasecmp(header->key, "Location") || !strcasecmp(header->key, "Refresh")) {
 																								
 																									// Get value
-																									const string value = "http://" + *listenAddress + ":" + to_string(*listenPort) + "/" + header->value;
+																									const string value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																									
 																									// Check if setting request's header to the header with the value failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
@@ -1687,7 +1697,7 @@ int main(int argc, char *argv[]) {
 																		}));
 																	
 																		// Check if setting outgoing request's host header failed
-																		if(evhttp_add_header(evhttp_request_get_output_headers(outgoingRequest.get()), "Host", (evhttp_uri_get_host(uri.get()) + ((evhttp_uri_get_port(uri.get()) != NO_URI_PORT) ? ":" + to_string(evhttp_uri_get_port(uri.get())) : "")).c_str())) {
+																		if(evhttp_add_header(evhttp_request_get_output_headers(outgoingRequest.get()), "Host", (evhttp_uri_get_host(uri.get()) + ((evhttp_uri_get_port(uri.get()) != NO_URI_PORT) ? ':' + to_string(evhttp_uri_get_port(uri.get())) : "")).c_str())) {
 																		
 																			// Reply with internal server error to request
 																			evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
@@ -1980,6 +1990,9 @@ int main(int argc, char *argv[]) {
 			
 				// Display message
 				cout << "Getting data from input failed" << endl;
+				
+				// Remove data from input
+				evbuffer_drain(input, length);
 				
 				// Remove Tor connection callbacks
 				bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2276,7 +2289,7 @@ int main(int argc, char *argv[]) {
 												if(evhttp_bind_socket(httpServer, listenAddress->c_str(), *listenPort)) {
 												
 													// Display message
-													cout << "Binding HTTP server to " << *listenAddress << ":" << to_string(*listenPort) << " failed" << endl;
+													cout << "Binding HTTP server to " << *listenAddress << ':' << to_string(*listenPort) << " failed" << endl;
 													
 													// Remove Tor connection callbacks
 													bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2294,22 +2307,25 @@ int main(int argc, char *argv[]) {
 													// Set Tor port to port number
 													*torPort = portNumber;
 											
-													// Display message
-													cout << "Listening at http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << endl;
-													
 													// Check if listen address is an IPv6 address
 													char temp[sizeof(in6_addr)];
 													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 													
 														// Display message
-														cout << "Example usage: http://[" << *listenAddress << "]" << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
+														cout << "Listening at http://[" << *listenAddress << ']' << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << endl;
+													
+														// Display message
+														cout << "Example usage: http://[" << *listenAddress << ']' << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 													
 													// Otherwise
 													else {
 													
 														// Display message
-														cout << "Example usage: http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ":" + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
+														cout << "Listening at http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << endl;
+													
+														// Display message
+														cout << "Example usage: http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 												}
 											}
@@ -2361,8 +2377,12 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	
-	// Seed random number generator
-	srand(time(nullptr));
+	// Initialize generator
+	random_device device;
+	mt19937 generator(device());
+	
+	// Initialize distribution
+	uniform_int_distribution<uint8_t> distribution(0, UINT8_MAX);
 	
 	// Loop until a unique temporary directory is created
 	filesystem::path temporaryDirectory;
@@ -2371,8 +2391,12 @@ int main(int argc, char *argv[]) {
 		// Initialize random string
 		stringstream randomString;
 		
-		// Fill random string
-		randomString << hex << rand();
+		// Go through all bytes in random string length
+		for(size_t i = 0; i < TEMPORARY_DIRECTORY_LENGTH; ++i) {
+		
+			// Fill byte in random string
+			randomString << hex << static_cast<uint16_t>(distribution(generator));
+		}	
 		
 		// Set temporary directory
 		temporaryDirectory = filesystem::temp_directory_path() / randomString.str();
@@ -2384,6 +2408,9 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 	}
+	
+	// Get temporary directory as a string
+	const string &temporaryDirectoryString = temporaryDirectory.string();
 	
 	// Set Tor arguments
 	const char *torArguments[] = {
@@ -2413,7 +2440,7 @@ int main(int argc, char *argv[]) {
 		"--ignore-missing-torrc",
 		
 		// Data directory
-		"--DataDirectory", temporaryDirectory.string().c_str(),
+		"--DataDirectory", temporaryDirectoryString.c_str(),
 		
 		// End
 		nullptr
