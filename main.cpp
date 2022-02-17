@@ -130,6 +130,9 @@ static const ev_uint16_t HTTPS_PORT = 443;
 // HTTP bad gateway
 static const int HTTP_BAD_GATEWAY = 502;
 
+// HTTP gateway timeout
+static const int HTTP_GATEWAY_TIMEOUT = 504;
+
 // Check Tor connected interval microseconds
 static const decltype(timeval::tv_usec) CHECK_TOR_CONNECTED_INTERVAL_MICROSECONDS = 100 * 1000;
 
@@ -756,8 +759,8 @@ int main(int argc, char *argv[]) {
 													// Remove SOCKS buffer callbacks
 													bufferevent_setcb(socksBuffer.get(), nullptr, nullptr, nullptr, nullptr);
 												
-													// Reply with internal server error to request
-													evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+													// Reply with bad gateway error to request
+													evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 												}
 												
 												// Otherwise
@@ -1041,6 +1044,9 @@ int main(int argc, char *argv[]) {
 																								// Otherwise
 																								else {
 																								
+																									// Remove all request headers
+																									evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																								
 																									// Reply with bad gateway error to request
 																									evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																								}
@@ -1063,8 +1069,11 @@ int main(int argc, char *argv[]) {
 																						// Otherwise check if request isn't finished
 																						else if(!*requestFinished) {
 																						
-																							// Reply with internal server error to request
-																							evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																							// Remove all request headers
+																							evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																						
+																							// Reply with bad gateway error to request
+																							evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																						}
 																						
 																					}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
@@ -1219,8 +1228,36 @@ int main(int argc, char *argv[]) {
 																						// Set outgoing request error callback
 																						evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
 																						
-																							// Check error
-																							if(error == EVREQ_HTTP_REQUEST_CANCEL) {
+																							// Check if timeout error occured
+																							if(error == EVREQ_HTTP_TIMEOUT) {
+																							
+																								// Get outgoing request callback argument from argument
+																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																								
+																								// Get request from outgoing request callback argument
+																								evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
+																								
+																								// Get request finished from outgoing request callback argument
+																								unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																								
+																								// Remove all request headers
+																								evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																							
+																								// Reply with gateway timeout error to request
+																								evhttp_send_reply(request, HTTP_GATEWAY_TIMEOUT, nullptr, nullptr);
+																								
+																								// Set that request is finished
+																								*requestFinished = true;
+																								
+																								// Release outgoing request callback argument
+																								outgoingRequestCallbackArgument.release();
+																								
+																								// Release request finished
+																								requestFinished.release();
+																							}
+																							
+																							// Otherwise check error
+																							else if(error == EVREQ_HTTP_REQUEST_CANCEL) {
 																							
 																								// Get outgoing request callback argument from argument
 																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
@@ -1560,6 +1597,9 @@ int main(int argc, char *argv[]) {
 																				// Otherwise
 																				else {
 																				
+																					// Remove all request headers
+																					evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																				
 																					// Reply with bad gateway error to request
 																					evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																				}
@@ -1575,8 +1615,11 @@ int main(int argc, char *argv[]) {
 																		// Otherwise check if request isn't finished
 																		else if(!*requestFinished) {
 																		
-																			// Reply with internal server error to request
-																			evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																			// Remove all request headers
+																			evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																		
+																			// Reply with bad gateway error to request
+																			evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																		}
 																		
 																	}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
@@ -1695,6 +1738,38 @@ int main(int argc, char *argv[]) {
 																			
 																			// Release request finished
 																			requestFinished.release();
+																		}));
+																		
+																		// Set outgoing request error callback
+																		evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
+																		
+																			// Check if timeout error occured
+																			if(error == EVREQ_HTTP_TIMEOUT) {
+																			
+																				// Get outgoing request callback argument from argument
+																				unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, bool *> *>(argument));
+																				
+																				// Get request from outgoing request callback argument
+																				evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
+																				
+																				// Get request finished from outgoing request callback argument
+																				unique_ptr<bool> requestFinished(get<3>(*outgoingRequestCallbackArgument));
+																				
+																				// Remove all request headers
+																				evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																			
+																				// Reply with gateway timeout error to request
+																				evhttp_send_reply(request, HTTP_GATEWAY_TIMEOUT, nullptr, nullptr);
+																				
+																				// Set that request is finished
+																				*requestFinished = true;
+																				
+																				// Release outgoing request callback argument
+																				outgoingRequestCallbackArgument.release();
+																				
+																				// Release request finished
+																				requestFinished.release();
+																			}
 																		}));
 																	
 																		// Check if setting outgoing request's host header failed
