@@ -15,6 +15,7 @@
 #include <memory>
 #include <random>
 #include <signal.h>
+#include <sstream>
 #include <thread>
 #include "event2/buffer.h"
 #include "event2/bufferevent_ssl.h"
@@ -70,7 +71,7 @@ using namespace std;
 #ifdef _WIN32
 
 	// Windows socket class
-	class WindowsSocket {
+	class WindowsSocket final {
 
 		// Public
 		public:
