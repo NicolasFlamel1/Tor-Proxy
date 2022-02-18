@@ -109,11 +109,29 @@ using namespace std;
 
 // Constants
 
+// Default listen address
+static const char *DEFAULT_LISTEN_ADDRESS = "localhost";
+
+// Default listen port
+static const uint16_t DEFAULT_LISTEN_PORT = 9060;
+
+// Seconds in a minute
+static const int SECONDS_IN_A_MINUTE = 60;
+
+// Minutes in an hour
+static const int MINUTES_IN_AN_HOUR = 60;
+
+// Hours in a day
+static const int HOURS_IN_A_DAY = 24;
+
+// Microseconds in a millisecond
+static const int MICROSECONDS_IN_A_MILLISECOND = 1000;
+
 // Read timeout seconds
-static const time_t READ_TIMEOUT_SECONDS = 24 * 60 * 60;
+static const time_t READ_TIMEOUT_SECONDS = HOURS_IN_A_DAY * MINUTES_IN_AN_HOUR * SECONDS_IN_A_MINUTE;
 
 // Write timeout seconds
-static const time_t WRITE_TIMEOUT_SECONDS = 2 * 60;
+static const time_t WRITE_TIMEOUT_SECONDS = 2 * SECONDS_IN_A_MINUTE;
 
 // No socket
 static const evutil_socket_t NO_SOCKET = -1;
@@ -134,7 +152,7 @@ static const int HTTP_BAD_GATEWAY = 502;
 static const int HTTP_GATEWAY_TIMEOUT = 504;
 
 // Check Tor connected interval microseconds
-static const decltype(timeval::tv_usec) CHECK_TOR_CONNECTED_INTERVAL_MICROSECONDS = 100 * 1000;
+static const decltype(timeval::tv_usec) CHECK_TOR_CONNECTED_INTERVAL_MICROSECONDS = 100 * MICROSECONDS_IN_A_MILLISECOND;
 
 // Temporary directory length
 static const size_t TEMPORARY_DIRECTORY_LENGTH = 8;
@@ -176,10 +194,16 @@ int main(int argc, char *argv[]) {
 	bool noVerify = false;
 	
 	// Initialize listen address
-	string listenAddress = "localhost";
+	string listenAddress = DEFAULT_LISTEN_ADDRESS;
 	
 	// Initialize listen port
-	uint16_t listenPort = 9060;
+	uint16_t listenPort = DEFAULT_LISTEN_PORT;
+	
+	// Initialize certificate
+	const char *certificate = nullptr;
+	
+	// Initialize key
+	const char *key = nullptr;
 	
 	// Set options
 	const option options[] = {
@@ -196,6 +220,12 @@ int main(int argc, char *argv[]) {
 		// Port
 		{"port", required_argument, nullptr, 'p'},
 		
+		// Certificate
+		{"certificate", required_argument, nullptr, 'c'},
+		
+		// Key
+		{"key", required_argument, nullptr, 'k'},
+		
 		// Help
 		{"help", no_argument, nullptr, 'h'},
 		
@@ -204,7 +234,7 @@ int main(int argc, char *argv[]) {
 	};
 	
 	// Go through all options
-	for(int option = getopt_long(argc, argv, "vna:p:h", options, nullptr); option != -1; option = getopt_long(argc, argv, "vna:p:h", options, nullptr)) {
+	for(int option = getopt_long(argc, argv, "vna:p:c:k:h", options, nullptr); option != -1; option = getopt_long(argc, argv, "vna:p:c:k:h", options, nullptr)) {
 	
 		// Check option
 		switch(option) {
@@ -230,6 +260,24 @@ int main(int argc, char *argv[]) {
 				// Set listen address
 				listenAddress = optarg;
 				
+				// Break
+				break;
+			
+			// Certificate
+			case 'c':
+			
+				// Set certificate
+				certificate = optarg;
+			
+				// Break
+				break;
+			
+			// Key
+			case 'k':
+			
+				// Set key
+				key = optarg;
+			
 				// Break
 				break;
 			
@@ -291,12 +339,38 @@ int main(int argc, char *argv[]) {
 				cout << "\t-n, --no_verify\t\tDisables verifying peer when using TLS" << endl;
 				cout << "\t-a, --address\t\tSets address to listen on" << endl;
 				cout << "\t-p, --port\t\tSets port to listen on" << endl;
+				cout << "\t-c, --certificate\tSets the TLS certificate file" << endl;
+				cout << "\t-k, --key\t\tSets the TLS private key file" << endl;
 				cout << "\t-h, --help\t\tDisplays help information" << endl;
 			
 				// Return failure
 				return EXIT_FAILURE;
 		}
 	}
+	
+	// Check if certificate is provided without a key or a key is provided without a certificate
+	if((certificate && !key) || (!certificate && key)) {
+	
+		// Display message
+		cout << ((certificate && !key) ? "No key provided for the certificate" : "No certificate provided for the key") << endl;
+		
+		// Display message
+		cout << endl << "Usage:" << endl << "\t\"" << argv[0] << "\" [options]" << endl << endl;
+		cout << "Options:" << endl;
+		cout << "\t-v, --version\t\tDisplays version information" << endl;
+		cout << "\t-n, --no_verify\t\tDisables verifying peer when using TLS" << endl;
+		cout << "\t-a, --address\t\tSets address to listen on" << endl;
+		cout << "\t-p, --port\t\tSets port to listen on" << endl;
+		cout << "\t-c, --certificate\tSets the TLS certificate file" << endl;
+		cout << "\t-k, --key\t\tSets the TLS private key file" << endl;
+		cout << "\t-h, --help\t\tDisplays help information" << endl;
+	
+		// Return failure
+		return EXIT_FAILURE;
+	}
+	
+	// Set using TLS server to if a certificate and key are provided
+	const bool usingTlsServer = certificate && key;
 
 	// Check if not Windows
 	#ifndef _WIN32
@@ -365,7 +439,7 @@ int main(int argc, char *argv[]) {
 	#endif
 
 	// Check if creating TLS method failed
-	const SSL_METHOD *tlsMethod = TLS_client_method();
+	const SSL_METHOD *tlsMethod = TLS_method();
 	if(!tlsMethod) {
 	
 		// Display message
@@ -435,6 +509,20 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	
+	// Check if using TLS server
+	if(usingTlsServer) {
+	
+		// Check if setting the TLS context's certificate and key failed
+		if(SSL_CTX_use_certificate_chain_file(tlsContext.get(), certificate) != 1 || SSL_CTX_use_PrivateKey_file(tlsContext.get(), key, SSL_FILETYPE_PEM) != 1 || SSL_CTX_check_private_key(tlsContext.get()) != 1) {
+		
+			// Display message
+			cout << "Setting the TLS context's certificate and key failed" << endl;
+		
+			// Return failure
+			return EXIT_FAILURE;
+		}
+	}
+	
 	// Check if creating event base failed
 	shared_ptr<event_base> eventBase(event_base_new(), event_base_free);
 	if(!eventBase) {
@@ -460,6 +548,46 @@ int main(int argc, char *argv[]) {
 	// Set HTTP server to allow all types of requests
 	evhttp_set_allowed_methods(httpServer.get(), EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_OPTIONS | EVHTTP_REQ_TRACE | EVHTTP_REQ_CONNECT | EVHTTP_REQ_PATCH);
 	
+	// Check if using TLS server
+	if(usingTlsServer) {
+	
+		// Set HTTP server buffer event create callback
+		evhttp_set_bevcb(httpServer.get(), ([](event_base *eventBase, void *argument) -> bufferevent * {
+		
+			// Get TLS context from argument
+			SSL_CTX *tlsContext = reinterpret_cast<SSL_CTX *>(argument);
+		
+			// Check if creating TLS connection from the TLS context failed
+			unique_ptr<SSL, decltype(&SSL_free)> tlsConnection(SSL_new(tlsContext), SSL_free);
+			if(!tlsConnection) {
+			
+				// Return null
+				return nullptr;
+			}
+			
+			// Check if creating TLS buffer failed
+			unique_ptr<bufferevent, decltype(&bufferevent_free)> tlsBuffer(bufferevent_openssl_socket_new(eventBase, NO_SOCKET, tlsConnection.get(), BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS), bufferevent_free);
+			if(!tlsBuffer) {
+			
+				// Return null
+				return nullptr;
+			}
+			
+			// Release TLS connection
+			tlsConnection.release();
+			
+			// Get buffer event
+			bufferevent *bufferEvent = tlsBuffer.get();
+			
+			// Release TLS buffer
+			tlsBuffer.release();
+			
+			// Return buffer event
+			return bufferEvent;
+			
+		}), tlsContext.get());
+	}
+	
 	// Initialize Tor address
 	string torAddress;
 	
@@ -467,13 +595,13 @@ int main(int argc, char *argv[]) {
 	uint16_t torPort;
 	
 	// Initialize HTTP server request callback argument
-	tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *> httpServerRequestCallbackArgument(&noVerify, &listenAddress, &listenPort, tlsContext.get(), &torAddress, &torPort);
+	tuple<const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *> httpServerRequestCallbackArgument(&noVerify, &listenAddress, &listenPort, &usingTlsServer, tlsContext.get(), &torAddress, &torPort);
 	
 	// Set HTTP server request callback
 	evhttp_set_gencb(httpServer.get(), ([](evhttp_request *request, void *argument) {
 	
 		// Get HTTP server request callback argument from argument
-		tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *httpServerRequestCallbackArgument = reinterpret_cast<tuple<const bool *, const string *, const uint16_t *, SSL_CTX *, string *, uint16_t *> *>(argument);
+		tuple<const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, string *, uint16_t *> *httpServerRequestCallbackArgument = reinterpret_cast<tuple<const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, string *, uint16_t *> *>(argument);
 		
 		// Get no verify from HTTP server request callback argument
 		const bool *noVerify = get<0>(*httpServerRequestCallbackArgument);
@@ -484,14 +612,35 @@ int main(int argc, char *argv[]) {
 		// Get listen port from HTTP server request callback argument
 		const uint16_t *listenPort = get<2>(*httpServerRequestCallbackArgument);
 		
+		// Get using TLS server from HTTP server request callback argument
+		const bool *usingTlsServer = get<3>(*httpServerRequestCallbackArgument);
+		
 		// Get TLS context from HTTP server request callback argument
-		SSL_CTX *tlsContext = get<3>(*httpServerRequestCallbackArgument);
+		SSL_CTX *tlsContext = get<4>(*httpServerRequestCallbackArgument);
 	
 		// Get Tor address from HTTP server request callback argument
-		const string *torAddress = get<4>(*httpServerRequestCallbackArgument);
+		const string *torAddress = get<5>(*httpServerRequestCallbackArgument);
 		
 		// Get Tor port from HTTP server request callback argument
-		const uint16_t *torPort = get<5>(*httpServerRequestCallbackArgument);
+		const uint16_t *torPort = get<6>(*httpServerRequestCallbackArgument);
+		
+		// Check if using TLS server
+		if(*usingTlsServer) {
+		
+			// Set request's connection close callback
+			evhttp_connection_set_closecb(evhttp_request_get_connection(request), ([](evhttp_connection *connection, void *argument) {
+			
+				// Check if request's TLS connection exists
+				SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(connection));
+				
+				if(requestTlsConnection) {
+				
+					// Shutdown request's TLS connection
+					SSL_shutdown(requestTlsConnection);
+				}
+				
+			}), nullptr);
+		}
 		
 		// Check if request doesn't have a URI
 		if(!evhttp_request_get_uri(request) || !strlen(evhttp_request_get_uri(request))) {
@@ -568,7 +717,7 @@ int main(int argc, char *argv[]) {
 					else {
 				
 						// Check if creating SOCKS buffer callbacks argument failed
-						unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument = make_unique<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>>(request, noVerify, listenAddress, listenPort, tlsContext, torAddress, torPort, uri.get(), socksState.get());
+						unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument = make_unique<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>>(request, noVerify, listenAddress, listenPort, usingTlsServer, tlsContext, torAddress, torPort, uri.get(), socksState.get());
 						if(!socksBufferCallbacksArgument) {
 						
 							// Reply with internal server error to request
@@ -585,7 +734,7 @@ int main(int argc, char *argv[]) {
 								unique_ptr<bufferevent, decltype(&bufferevent_free)> socksBuffer(buffer, bufferevent_free);
 							
 								// Get SOCKS buffer callbacks argument from argument
-								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *> *>(argument));
+								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *> *>(argument));
 								
 								// Get request from SOCKS buffer callbacks argument
 								evhttp_request *request = get<0>(*socksBufferCallbacksArgument);
@@ -599,20 +748,23 @@ int main(int argc, char *argv[]) {
 								// Get listen port from SOCKS buffer callbacks argument
 								const uint16_t *listenPort = get<3>(*socksBufferCallbacksArgument);
 								
+								// Get using TLS server from SOCKS buffer callbacks argument
+								const bool *usingTlsServer = get<4>(*socksBufferCallbacksArgument);
+								
 								// Get TLS context from SOCKS buffer callbacks argument
-								SSL_CTX *tlsContext = get<4>(*socksBufferCallbacksArgument);
+								SSL_CTX *tlsContext = get<5>(*socksBufferCallbacksArgument);
 								
 								// Get Tor address from SOCKS buffer callbacks argument
-								const string *torAddress = get<5>(*socksBufferCallbacksArgument);
+								const string *torAddress = get<6>(*socksBufferCallbacksArgument);
 								
 								// Get Tor port from SOCKS buffer callbacks argument
-								const uint16_t *torPort = get<6>(*socksBufferCallbacksArgument);
+								const uint16_t *torPort = get<7>(*socksBufferCallbacksArgument);
 								
 								// Get URI from SOCKS buffer callbacks argument
-								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<7>(*socksBufferCallbacksArgument), evhttp_uri_free);
+								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<8>(*socksBufferCallbacksArgument), evhttp_uri_free);
 								
 								// Get SOCKS state from SOCKS buffer callbacks argument
-								unique_ptr<SocksState> socksState(get<8>(*socksBufferCallbacksArgument));
+								unique_ptr<SocksState> socksState(get<9>(*socksBufferCallbacksArgument));
 								
 								// Check if getting input from the SOCKS buffer failed
 								evbuffer *input = bufferevent_get_input(socksBuffer.get());
@@ -871,7 +1023,7 @@ int main(int argc, char *argv[]) {
 																			else {
 																			
 																				// Check if creating outgoing request callback argument failed
-																				unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>>(request, noVerify, listenAddress, listenPort, uri.get(), socksConnection.get(), requestFinished.get());
+																				unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>>(request, noVerify, listenAddress, listenPort, usingTlsServer, uri.get(), socksConnection.get(), requestFinished.get());
 																				if(!outgoingRequestCallbackArgument) {
 																				
 																					// Reply with internal server error to request
@@ -885,7 +1037,7 @@ int main(int argc, char *argv[]) {
 																					unique_ptr<evhttp_request, decltype(&evhttp_request_free)> outgoingRequest(evhttp_request_new(([](evhttp_request *outgoingRequest, void *argument) {
 																					
 																						// Get outgoing request callback argument from argument
-																						unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																						unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
 																						
 																						// Get request from outgoing request callback argument
 																						evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -899,14 +1051,17 @@ int main(int argc, char *argv[]) {
 																						// Get listen port from outgoing request callback argument
 																						const uint16_t *listenPort = get<3>(*outgoingRequestCallbackArgument);
 																						
+																						// Get using TLS server from outgoing request callback argument
+																						const bool *usingTlsServer = get<4>(*outgoingRequestCallbackArgument);
+																						
 																						// Get URI from outgoing request callback argument
-																						unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<4>(*outgoingRequestCallbackArgument), evhttp_uri_free);
+																						unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<5>(*outgoingRequestCallbackArgument), evhttp_uri_free);
 																						
 																						// Get SOCKS connection from outgoing request callback argument
-																						unique_ptr<evhttp_connection, decltype(&evhttp_connection_free)> socksConnection(get<5>(*outgoingRequestCallbackArgument), evhttp_connection_free);
+																						unique_ptr<evhttp_connection, decltype(&evhttp_connection_free)> socksConnection(get<6>(*outgoingRequestCallbackArgument), evhttp_connection_free);
 																						
 																						// Get request finished from outgoing request callback argument
-																						unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																						unique_ptr<bool> requestFinished(get<7>(*outgoingRequestCallbackArgument));
 																						
 																						// Check if outgoing request exists
 																						if(outgoingRequest) {
@@ -936,6 +1091,9 @@ int main(int argc, char *argv[]) {
 																									// Check if response to the request hasn't been started
 																									if(!evhttp_request_get_response_code(request)) {
 																									
+																										// Initialize error occured
+																										bool errorOccured = false;
+																									
 																										// Check if outgoing request has headers
 																										evkeyvalq *headers = evhttp_request_get_input_headers(outgoingRequest);
 																										if(headers) {
@@ -954,40 +1112,27 @@ int main(int argc, char *argv[]) {
 																													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																													
 																														// Set value
-																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
+																														value = string(*usingTlsServer ? "https" : "http") + "://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Otherwise
 																													else {
 																												
 																														// Set value
-																														value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
+																														value = string(*usingTlsServer ? "https" : "http") + "://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Check if setting request's header to the header with the value failed
 																													if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
+																													
+																														// Set error occured
+																														errorOccured = true;
 																													
 																														// Remove all request headers
 																														evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																														
 																														// Reply with internal server error to request
 																														evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
-																														
-																														// Check if TLS connection exists
-																														if(tlsConnection) {
-																														
-																															// Shutdown TLS connection
-																															SSL_shutdown(tlsConnection);
-																														}
-																														
-																														// Cancel outgoing request
-																														evhttp_cancel_request(outgoingRequest);
-																														
-																														// Free outgoing request
-																														evhttp_request_free(outgoingRequest);
-																														
-																														// Return
-																														return;
 																													}
 																												}
 																												
@@ -997,37 +1142,28 @@ int main(int argc, char *argv[]) {
 																													// Check if setting request's header to the header failed
 																													if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																													
+																														// Set error occured
+																														errorOccured = true;
+																													
 																														// Remove all request headers
 																														evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																														
 																														// Reply with internal server error to request
 																														evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
-																														
-																														// Check if TLS connection exists
-																														if(tlsConnection) {
-																														
-																															// Shutdown TLS connection
-																															SSL_shutdown(tlsConnection);
-																														}
-																														
-																														// Cancel outgoing request
-																														evhttp_cancel_request(outgoingRequest);
-																														
-																														// Free outgoing request
-																														evhttp_request_free(outgoingRequest);
-																														
-																														// Return
-																														return;
 																													}
 																												}
 																											}
 																										}
-																									
-																										// Set request's outgoing data to be the outgoing request's incomming data
-																										evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
 																										
-																										// Reply with respone to request
-																										evhttp_send_reply(request, evhttp_request_get_response_code(outgoingRequest), nullptr, nullptr);
+																										// Check if an error didn't occur
+																										if(!errorOccured) {
+																									
+																											// Set request's outgoing data to be the outgoing request's incomming data
+																											evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
+																											
+																											// Reply with respone to request
+																											evhttp_send_reply(request, evhttp_request_get_response_code(outgoingRequest), nullptr, nullptr);
+																										}
 																									}
 																									
 																									// Otherwise
@@ -1076,6 +1212,49 @@ int main(int argc, char *argv[]) {
 																							evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																						}
 																						
+																						// Check if using TLS server
+																						if(*usingTlsServer) {
+																						
+																							// Remove request's connection close callback
+																							evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
+																						
+																							// Check if request's output buffer still has data
+																							if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
+																						
+																								// Request's buffer event callbacks
+																								bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
+																								
+																									// Get request's TLS connection from argument
+																									SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
+																									
+																									// Check if done writing
+																									if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
+																									
+																										// Check if request's TLS connection exists
+																										if(requestTlsConnection) {
+																										
+																											// Shutdown request's TLS connection
+																											SSL_shutdown(requestTlsConnection);
+																										}
+																									}
+																								
+																								}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
+																							}
+																							
+																							// Otherwise
+																							else {
+																							
+																								// Check if request's TLS connection exists
+																								SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
+																								
+																								if(requestTlsConnection) {
+																								
+																									// Shutdown request's TLS connection
+																									SSL_shutdown(requestTlsConnection);
+																								}
+																							}
+																						}
+																						
 																					}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
 																					
 																					if(!outgoingRequest) {
@@ -1091,7 +1270,7 @@ int main(int argc, char *argv[]) {
 																						evhttp_request_set_chunked_cb(outgoingRequest.get(), ([](evhttp_request *outgoingRequest, void *argument) {
 																						
 																							// Get outgoing request callback argument from argument
-																							unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																							unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
 																							
 																							// Get request from outgoing request callback argument
 																							evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -1105,8 +1284,11 @@ int main(int argc, char *argv[]) {
 																							// Get listen port from outgoing request callback argument
 																							const uint16_t *listenPort = get<3>(*outgoingRequestCallbackArgument);
 																							
+																							// Get using TLS server from outgoing request callback argument
+																							const bool *usingTlsServer = get<4>(*outgoingRequestCallbackArgument);
+																							
 																							// Get request finished from outgoing request callback argument
-																							unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																							unique_ptr<bool> requestFinished(get<7>(*outgoingRequestCallbackArgument));
 																							
 																							// Get TLS connection
 																							SSL *tlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(outgoingRequest)));
@@ -1148,14 +1330,14 @@ int main(int argc, char *argv[]) {
 																													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																													
 																														// Set value
-																														value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
+																														value = string(*usingTlsServer ? "https" : "http") + "://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Otherwise
 																													else {
 																												
 																														// Set value
-																														value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
+																														value = string(*usingTlsServer ? "https" : "http") + "://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																													}
 																													
 																													// Check if setting request's header to the header with the value failed
@@ -1228,17 +1410,17 @@ int main(int argc, char *argv[]) {
 																						// Set outgoing request error callback
 																						evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
 																						
-																							// Check if timeout error occured
+																							// Check if timeout occured
 																							if(error == EVREQ_HTTP_TIMEOUT) {
 																							
 																								// Get outgoing request callback argument from argument
-																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
 																								
 																								// Get request from outgoing request callback argument
 																								evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
 																								
 																								// Get request finished from outgoing request callback argument
-																								unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																								unique_ptr<bool> requestFinished(get<7>(*outgoingRequestCallbackArgument));
 																								
 																								// Remove all request headers
 																								evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1256,26 +1438,72 @@ int main(int argc, char *argv[]) {
 																								requestFinished.release();
 																							}
 																							
-																							// Otherwise check error
+																							// Otherwise check if cancel occured
 																							else if(error == EVREQ_HTTP_REQUEST_CANCEL) {
 																							
 																								// Get outgoing request callback argument from argument
-																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
 																								
 																								// Get request from outgoing request callback argument
 																								evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
 																								
+																								// Get using TLS server from outgoing request callback argument
+																								const bool *usingTlsServer = get<4>(*outgoingRequestCallbackArgument);
+																								
 																								// Get URI from outgoing request callback argument
-																								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<4>(*outgoingRequestCallbackArgument), evhttp_uri_free);
+																								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<5>(*outgoingRequestCallbackArgument), evhttp_uri_free);
 																								
 																								// Get SOCKS connection from outgoing request callback argument
-																								unique_ptr<evhttp_connection, decltype(&evhttp_connection_free)> socksConnection(get<5>(*outgoingRequestCallbackArgument), evhttp_connection_free);
+																								unique_ptr<evhttp_connection, decltype(&evhttp_connection_free)> socksConnection(get<6>(*outgoingRequestCallbackArgument), evhttp_connection_free);
 																								
 																								// Get request finished from outgoing request callback argument
-																								unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																								unique_ptr<bool> requestFinished(get<7>(*outgoingRequestCallbackArgument));
 																								
 																								// Reply with bad gateway error to request
 																								evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
+																								
+																								// Check if using TLS server
+																								if(*usingTlsServer) {
+																								
+																									// Remove request's connection close callback
+																									evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
+																								
+																									// Check if request's output buffer still has data
+																									if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
+																								
+																										// Request's buffer event callbacks
+																										bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
+																										
+																											// Get request's TLS connection from argument
+																											SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
+																											
+																											// Check if done writing
+																											if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
+																											
+																												// Check if request's TLS connection exists
+																												if(requestTlsConnection) {
+																												
+																													// Shutdown request's TLS connection
+																													SSL_shutdown(requestTlsConnection);
+																												}
+																											}
+																										
+																										}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
+																									}
+																									
+																									// Otherwise
+																									else {
+																									
+																										// Check if request's TLS connection exists
+																										SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
+																										
+																										if(requestTlsConnection) {
+																										
+																											// Shutdown request's TLS connection
+																											SSL_shutdown(requestTlsConnection);
+																										}
+																									}
+																								}
 																							}
 																						}));
 																						
@@ -1463,7 +1691,7 @@ int main(int argc, char *argv[]) {
 															else {
 															
 																// Check if creating outgoing request callback argument failed
-																unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const string *, const uint16_t *, bool *>>(request, listenAddress, listenPort, requestFinished.get());
+																unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>>(request, listenAddress, listenPort, usingTlsServer, requestFinished.get());
 																if(!outgoingRequestCallbackArgument) {
 																
 																	// Reply with internal server error to request
@@ -1477,7 +1705,7 @@ int main(int argc, char *argv[]) {
 																	unique_ptr<evhttp_request, decltype(&evhttp_request_free)> outgoingRequest(evhttp_request_new(([](evhttp_request *outgoingRequest, void *argument) {
 																	
 																		// Get outgoing request callback argument from argument
-																		unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, bool *> *>(argument));
+																		unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																		
 																		// Get request from outgoing request callback argument
 																		evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -1488,11 +1716,17 @@ int main(int argc, char *argv[]) {
 																		// Get listen port from outgoing request callback argument
 																		const uint16_t *listenPort = get<2>(*outgoingRequestCallbackArgument);
 																		
+																		// Get using TLS server from outgoing request callback argument
+																		const bool *usingTlsServer = get<3>(*outgoingRequestCallbackArgument);
+																		
 																		// Get request finished from outgoing request callback argument
-																		unique_ptr<bool> requestFinished(get<3>(*outgoingRequestCallbackArgument));
+																		unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																		
 																		// Check if outgoing request exists
 																		if(outgoingRequest) {
+																		
+																			// Remove outgoing request error callback
+																			evhttp_request_set_error_cb(outgoingRequest, nullptr);
 																		
 																			// Check if request isn't finished
 																			if(!*requestFinished) {
@@ -1502,6 +1736,9 @@ int main(int argc, char *argv[]) {
 																				
 																					// Check if response to the request hasn't been started
 																					if(!evhttp_request_get_response_code(request)) {
+																					
+																						// Initialize error occured
+																						bool errorOccured = false;
 																					
 																						// Check if outgoing request has headers
 																						evkeyvalq *headers = evhttp_request_get_input_headers(outgoingRequest);
@@ -1521,33 +1758,27 @@ int main(int argc, char *argv[]) {
 																									if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 																									
 																										// Set value
-																										value = "http://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
+																										value = string(*usingTlsServer ? "https" : "http") + "://[" + *listenAddress + "]:" + to_string(*listenPort) + '/' + header->value;
 																									}
 																									
 																									// Otherwise
 																									else {
 																								
 																										// Set value
-																										value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
+																										value = string(*usingTlsServer ? "https" : "http") + "://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																									}
 																									
 																									// Check if setting request's header to the header with the value failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
+																									
+																										// Set error occured
+																										errorOccured = true;
 																									
 																										// Remove all request headers
 																										evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																										
 																										// Reply with internal server error to request
 																										evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
-																										
-																										// Cancel outgoing request
-																										evhttp_cancel_request(outgoingRequest);
-																										
-																										// Free outgoing request
-																										evhttp_request_free(outgoingRequest);
-																										
-																										// Return
-																										return;
 																									}
 																								}
 																								
@@ -1557,30 +1788,28 @@ int main(int argc, char *argv[]) {
 																									// Check if setting request's header to the header failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																									
+																										// Set error occured
+																										errorOccured = true;
+																									
 																										// Remove all request headers
 																										evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																										
 																										// Reply with internal server error to request
 																										evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
-																										
-																										// Cancel outgoing request
-																										evhttp_cancel_request(outgoingRequest);
-																										
-																										// Free outgoing request
-																										evhttp_request_free(outgoingRequest);
-																										
-																										// Return
-																										return;
 																									}
 																								}
 																							}
 																						}
-																					
-																						// Set request's outgoing data to be the outgoing request's incomming data
-																						evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
 																						
-																						// Reply with respone to request
-																						evhttp_send_reply(request, evhttp_request_get_response_code(outgoingRequest), nullptr, nullptr);
+																						// Check if an error didn't occur
+																						if(!errorOccured) {
+																					
+																							// Set request's outgoing data to be the outgoing request's incomming data
+																							evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
+																							
+																							// Reply with respone to request
+																							evhttp_send_reply(request, evhttp_request_get_response_code(outgoingRequest), nullptr, nullptr);
+																						}
 																					}
 																					
 																					// Otherwise
@@ -1604,7 +1833,7 @@ int main(int argc, char *argv[]) {
 																					evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																				}
 																			}
-																							
+																			
 																			// Cancel outgoing request
 																			evhttp_cancel_request(outgoingRequest);
 																			
@@ -1622,6 +1851,49 @@ int main(int argc, char *argv[]) {
 																			evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																		}
 																		
+																		// Check if using TLS server
+																		if(*usingTlsServer) {
+																		
+																			// Remove request's connection close callback
+																			evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
+																		
+																			// Check if request's output buffer still has data
+																			if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
+																		
+																				// Request's buffer event callbacks
+																				bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
+																				
+																					// Get request's TLS connection from argument
+																					SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
+																					
+																					// Check if done writing
+																					if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
+																					
+																						// Check if request's TLS connection exists
+																						if(requestTlsConnection) {
+																						
+																							// Shutdown request's TLS connection
+																							SSL_shutdown(requestTlsConnection);
+																						}
+																					}
+																				
+																				}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
+																			}
+																			
+																			// Otherwise
+																			else {
+																			
+																				// Check if request's TLS connection exists
+																				SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
+																				
+																				if(requestTlsConnection) {
+																				
+																					// Shutdown request's TLS connection
+																					SSL_shutdown(requestTlsConnection);
+																				}
+																			}
+																		}
+																		
 																	}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
 																	
 																	if(!outgoingRequest) {
@@ -1637,7 +1909,7 @@ int main(int argc, char *argv[]) {
 																		evhttp_request_set_chunked_cb(outgoingRequest.get(), ([](evhttp_request *outgoingRequest, void *argument) {
 																		
 																			// Get outgoing request callback argument from argument
-																			unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, bool *> *>(argument));
+																			unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																			
 																			// Get request from outgoing request callback argument
 																			evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -1648,8 +1920,11 @@ int main(int argc, char *argv[]) {
 																			// Get listen port from outgoing request callback argument
 																			const uint16_t *listenPort = get<2>(*outgoingRequestCallbackArgument);
 																			
+																			// Get using TLS server from outgoing request callback argument
+																			const bool *usingTlsServer = get<3>(*outgoingRequestCallbackArgument);
+																			
 																			// Get request finished from outgoing request callback argument
-																			unique_ptr<bool> requestFinished(get<3>(*outgoingRequestCallbackArgument));
+																			unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																			
 																			// Check if request isn't finished
 																			if(!*requestFinished) {
@@ -1671,7 +1946,7 @@ int main(int argc, char *argv[]) {
 																								if(!strcasecmp(header->key, "Location") || !strcasecmp(header->key, "Refresh")) {
 																								
 																									// Get value
-																									const string value = "http://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
+																									const string value = string(*usingTlsServer ? "https" : "http") + "://" + *listenAddress + ':' + to_string(*listenPort) + '/' + header->value;
 																									
 																									// Check if setting request's header to the header with the value failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
@@ -1743,17 +2018,17 @@ int main(int argc, char *argv[]) {
 																		// Set outgoing request error callback
 																		evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
 																		
-																			// Check if timeout error occured
+																			// Check if timeout occured
 																			if(error == EVREQ_HTTP_TIMEOUT) {
 																			
 																				// Get outgoing request callback argument from argument
-																				unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, bool *> *>(argument));
+																				unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																				
 																				// Get request from outgoing request callback argument
 																				evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
 																				
 																				// Get request finished from outgoing request callback argument
-																				unique_ptr<bool> requestFinished(get<3>(*outgoingRequestCallbackArgument));
+																				unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																				
 																				// Remove all request headers
 																				evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1871,16 +2146,16 @@ int main(int argc, char *argv[]) {
 								unique_ptr<bufferevent, decltype(&bufferevent_free)> socksBuffer(buffer, bufferevent_free);
 								
 								// Get SOCKS buffer callbacks argument from argument
-								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *> *>(argument));
+								unique_ptr<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *>> socksBufferCallbacksArgument(reinterpret_cast<tuple<evhttp_request *, const bool *, const string *, const uint16_t *, const bool *, SSL_CTX *, const string *, const uint16_t *, evhttp_uri *, SocksState *> *>(argument));
 								
 								// Get request from SOCKS buffer callbacks argument
 								evhttp_request *request = get<0>(*socksBufferCallbacksArgument);
 								
 								// Get URI from SOCKS buffer callbacks argument
-								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<7>(*socksBufferCallbacksArgument), evhttp_uri_free);
+								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<8>(*socksBufferCallbacksArgument), evhttp_uri_free);
 								
 								// Get SOCKS state from SOCKS buffer callbacks argument
-								unique_ptr<SocksState> socksState(get<8>(*socksBufferCallbacksArgument));
+								unique_ptr<SocksState> socksState(get<9>(*socksBufferCallbacksArgument));
 								
 								// Check if connected
 								if(event & BEV_EVENT_CONNECTED) {
@@ -2014,13 +2289,13 @@ int main(int argc, char *argv[]) {
 	bool torConnected = false;
 	
 	// Initialize Tor connection callbacks argument
-	tuple<const string *, const uint16_t *, evhttp *, bool *, string *, uint16_t *> torConnectionCallbacksArgument(&listenAddress, &listenPort, httpServer.get(), &torConnected, &torAddress, &torPort);
+	tuple<const string *, const uint16_t *, const bool *, evhttp *, bool *, string *, uint16_t *> torConnectionCallbacksArgument(&listenAddress, &listenPort, &usingTlsServer, httpServer.get(), &torConnected, &torAddress, &torPort);
 	
 	// Set Tor connection callbacks
 	bufferevent_setcb(torConnection.get(), ([](bufferevent *torConnection, void *argument) {
 	
 		// Get Tor connection callbacks argument from argument
-		tuple<const string *, const uint16_t *, evhttp *, bool *, string *, uint16_t *> *torConnectionCallbacksArgument = reinterpret_cast<tuple<const string *, const uint16_t *, evhttp *, bool *, string *, uint16_t *> *>(argument);
+		tuple<const string *, const uint16_t *, const bool *, evhttp *, bool *, string *, uint16_t *> *torConnectionCallbacksArgument = reinterpret_cast<tuple<const string *, const uint16_t *, const bool *, evhttp *, bool *, string *, uint16_t *> *>(argument);
 		
 		// Get listen address from Tor connection callbacks arguments
 		const string *listenAddress = get<0>(*torConnectionCallbacksArgument);
@@ -2028,17 +2303,20 @@ int main(int argc, char *argv[]) {
 		// Get listen port from Tor connection callbacks arguments
 		const uint16_t *listenPort = get<1>(*torConnectionCallbacksArgument);
 		
+		// Get using TLS server from Tor connection callbacks arguments
+		const bool *usingTlsServer = get<2>(*torConnectionCallbacksArgument);
+		
 		// Get HTTP server from Tor connection callbacks arguments
-		evhttp *httpServer = get<2>(*torConnectionCallbacksArgument);
+		evhttp *httpServer = get<3>(*torConnectionCallbacksArgument);
 	
 		// Get Tor connected from Tor connection callbacks argument
-		bool *torConnected = get<3>(*torConnectionCallbacksArgument);
+		bool *torConnected = get<4>(*torConnectionCallbacksArgument);
 		
 		// Get Tor address from Tor connection callbacks argument
-		string *torAddress = get<4>(*torConnectionCallbacksArgument);
+		string *torAddress = get<5>(*torConnectionCallbacksArgument);
 		
 		// Get Tor port from Tor connection callbacks argument
-		uint16_t *torPort = get<5>(*torConnectionCallbacksArgument);
+		uint16_t *torPort = get<6>(*torConnectionCallbacksArgument);
 		
 		// Check if getting input from the Tor connection failed
 		evbuffer *input = bufferevent_get_input(torConnection);
@@ -2361,11 +2639,11 @@ int main(int argc, char *argv[]) {
 											// Otherwise
 											else {
 											
-												// Check if binding HTTP server to listen address and listen port failed
+												// Check if binding server to listen address and listen port failed
 												if(evhttp_bind_socket(httpServer, listenAddress->c_str(), *listenPort)) {
 												
 													// Display message
-													cout << "Binding HTTP server to " << *listenAddress << ':' << to_string(*listenPort) << " failed" << endl;
+													cout << "Binding server to " << *listenAddress << ':' << to_string(*listenPort) << " failed" << endl;
 													
 													// Remove Tor connection callbacks
 													bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2382,26 +2660,29 @@ int main(int argc, char *argv[]) {
 													
 													// Set Tor port to port number
 													*torPort = portNumber;
+													
+													// Set display port to if the listen port doesn't match the default server port
+													const bool displayPort = (!*usingTlsServer && *listenPort != HTTP_PORT) || (*usingTlsServer && *listenPort != HTTPS_PORT);
 											
 													// Check if listen address is an IPv6 address
 													char temp[sizeof(in6_addr)];
 													if(inet_pton(AF_INET6, listenAddress->c_str(), temp) == 1) {
 													
 														// Display message
-														cout << "Listening at http://[" << *listenAddress << ']' << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << endl;
+														cout << "Listening at " << (*usingTlsServer ? "https" : "http") << "://[" << *listenAddress << ']' << (displayPort ? ':' + to_string(*listenPort) : "") << endl;
 													
 														// Display message
-														cout << "Example usage: http://[" << *listenAddress << ']' << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
+														cout << "Example usage: " << (*usingTlsServer ? "https" : "http") << "://[" << *listenAddress << ']' << (displayPort ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 													
 													// Otherwise
 													else {
 													
 														// Display message
-														cout << "Listening at http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << endl;
+														cout << "Listening at " << (*usingTlsServer ? "https" : "http") << "://" << *listenAddress << (displayPort ? ':' + to_string(*listenPort) : "") << endl;
 													
 														// Display message
-														cout << "Example usage: http://" << *listenAddress << ((*listenPort != HTTP_PORT) ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
+														cout << "Example usage: " << (*usingTlsServer ? "https" : "http") << "://" << *listenAddress << (displayPort ? ':' + to_string(*listenPort) : "") << "/https://check.torproject.org" << endl;
 													}
 												}
 											}
