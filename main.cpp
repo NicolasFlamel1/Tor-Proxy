@@ -3,6 +3,10 @@
 
 	// Set system version
 	#define _WIN32_WINNT _WIN32_WINNT_VISTA
+	
+	// Use Unicode
+	#define UNICODE
+	#define _UNICODE
 #endif
 
 // Header files
@@ -128,7 +132,7 @@ static const int HOURS_IN_A_DAY = 24;
 static const int MICROSECONDS_IN_A_MILLISECOND = 1000;
 
 // Read timeout seconds
-static const time_t READ_TIMEOUT_SECONDS = HOURS_IN_A_DAY * MINUTES_IN_AN_HOUR * SECONDS_IN_A_MINUTE;
+static const time_t READ_TIMEOUT_SECONDS = 1 * HOURS_IN_A_DAY * MINUTES_IN_AN_HOUR * SECONDS_IN_A_MINUTE;
 
 // Write timeout seconds
 static const time_t WRITE_TIMEOUT_SECONDS = 2 * SECONDS_IN_A_MINUTE;
@@ -180,7 +184,7 @@ static int tlsRequestIndex;
 #ifdef _WIN32
 
 	// Add system certificates to certificate store
-	static bool addSystemCertificatesToCertificateStore(X509_STORE *certificateStore, const char *systemStoreName);
+	static bool addSystemCertificatesToCertificateStore(X509_STORE *certificateStore, const TCHAR *systemStoreName);
 #endif
 
 
@@ -475,7 +479,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		// Check if adding system certificates to the certificate store failed
-		if(!addSystemCertificatesToCertificateStore(certificateStore, "ROOT") || !addSystemCertificatesToCertificateStore(certificateStore, "CA") || !addSystemCertificatesToCertificateStore(certificateStore, "MY")) {
+		if(!addSystemCertificatesToCertificateStore(certificateStore, TEXT("ROOT")) || !addSystemCertificatesToCertificateStore(certificateStore, TEXT("CA")) || !addSystemCertificatesToCertificateStore(certificateStore, TEXT("MY"))) {
 		
 			// Display message
 			cout << "Adding system certificates to the certificate store failed" << endl;
@@ -1212,49 +1216,6 @@ int main(int argc, char *argv[]) {
 																							evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
 																						}
 																						
-																						// Check if using TLS server
-																						if(*usingTlsServer) {
-																						
-																							// Remove request's connection close callback
-																							evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
-																						
-																							// Check if request's output buffer still has data
-																							if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
-																						
-																								// Request's buffer event callbacks
-																								bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
-																								
-																									// Get request's TLS connection from argument
-																									SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
-																									
-																									// Check if done writing
-																									if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
-																									
-																										// Check if request's TLS connection exists
-																										if(requestTlsConnection) {
-																										
-																											// Shutdown request's TLS connection
-																											SSL_shutdown(requestTlsConnection);
-																										}
-																									}
-																								
-																								}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
-																							}
-																							
-																							// Otherwise
-																							else {
-																							
-																								// Check if request's TLS connection exists
-																								SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
-																								
-																								if(requestTlsConnection) {
-																								
-																									// Shutdown request's TLS connection
-																									SSL_shutdown(requestTlsConnection);
-																								}
-																							}
-																						}
-																						
 																					}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
 																					
 																					if(!outgoingRequest) {
@@ -1447,9 +1408,6 @@ int main(int argc, char *argv[]) {
 																								// Get request from outgoing request callback argument
 																								evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
 																								
-																								// Get using TLS server from outgoing request callback argument
-																								const bool *usingTlsServer = get<4>(*outgoingRequestCallbackArgument);
-																								
 																								// Get URI from outgoing request callback argument
 																								unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<5>(*outgoingRequestCallbackArgument), evhttp_uri_free);
 																								
@@ -1461,49 +1419,6 @@ int main(int argc, char *argv[]) {
 																								
 																								// Reply with bad gateway error to request
 																								evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
-																								
-																								// Check if using TLS server
-																								if(*usingTlsServer) {
-																								
-																									// Remove request's connection close callback
-																									evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
-																								
-																									// Check if request's output buffer still has data
-																									if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
-																								
-																										// Request's buffer event callbacks
-																										bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
-																										
-																											// Get request's TLS connection from argument
-																											SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
-																											
-																											// Check if done writing
-																											if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
-																											
-																												// Check if request's TLS connection exists
-																												if(requestTlsConnection) {
-																												
-																													// Shutdown request's TLS connection
-																													SSL_shutdown(requestTlsConnection);
-																												}
-																											}
-																										
-																										}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
-																									}
-																									
-																									// Otherwise
-																									else {
-																									
-																										// Check if request's TLS connection exists
-																										SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
-																										
-																										if(requestTlsConnection) {
-																										
-																											// Shutdown request's TLS connection
-																											SSL_shutdown(requestTlsConnection);
-																										}
-																									}
-																								}
 																							}
 																						}));
 																						
@@ -1849,49 +1764,6 @@ int main(int argc, char *argv[]) {
 																		
 																			// Reply with bad gateway error to request
 																			evhttp_send_reply(request, HTTP_BAD_GATEWAY, nullptr, nullptr);
-																		}
-																		
-																		// Check if using TLS server
-																		if(*usingTlsServer) {
-																		
-																			// Remove request's connection close callback
-																			evhttp_connection_set_closecb(evhttp_request_get_connection(request), nullptr, nullptr);
-																		
-																			// Check if request's output buffer still has data
-																			if(evbuffer_get_length(bufferevent_get_output(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))))) {
-																		
-																				// Request's buffer event callbacks
-																				bufferevent_setcb(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)), nullptr, ([](bufferevent *bufferEvent, void *argument) {
-																				
-																					// Get request's TLS connection from argument
-																					SSL *requestTlsConnection = reinterpret_cast<SSL *>(argument);
-																					
-																					// Check if done writing
-																					if(!evbuffer_get_length(bufferevent_get_output(bufferEvent))) {
-																					
-																						// Check if request's TLS connection exists
-																						if(requestTlsConnection) {
-																						
-																							// Shutdown request's TLS connection
-																							SSL_shutdown(requestTlsConnection);
-																						}
-																					}
-																				
-																				}), nullptr, bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request))));
-																			}
-																			
-																			// Otherwise
-																			else {
-																			
-																				// Check if request's TLS connection exists
-																				SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(evhttp_request_get_connection(request)));
-																				
-																				if(requestTlsConnection) {
-																				
-																					// Shutdown request's TLS connection
-																					SSL_shutdown(requestTlsConnection);
-																				}
-																			}
 																		}
 																		
 																	}), outgoingRequestCallbackArgument.get()), evhttp_request_free);
@@ -2960,7 +2832,7 @@ int main(int argc, char *argv[]) {
 #ifdef _WIN32
 
 	// Add system certificate to certificate store
-	bool addSystemCertificatesToCertificateStore(X509_STORE *certificateStore, const char *systemStoreName) {
+	bool addSystemCertificatesToCertificateStore(X509_STORE *certificateStore, const TCHAR *systemStoreName) {
 
 		// Check if opening system store failed
 		HCERTSTORE systemStore = CertOpenSystemStore(0, systemStoreName);
