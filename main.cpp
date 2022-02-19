@@ -192,7 +192,7 @@ static int tlsRequestIndex;
 int main(int argc, char *argv[]) {
 
 	// Display message
-	cout << TOSTRING(PROGRAM_NAME) << " V" << TOSTRING(PROGRAM_VERSION) << endl;
+	cout << TOSTRING(PROGRAM_NAME) << " v" << TOSTRING(PROGRAM_VERSION) << endl;
 	
 	// Initialize no verify
 	bool noVerify = false;
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
 		{"port", required_argument, nullptr, 'p'},
 		
 		// Certificate
-		{"certificate", required_argument, nullptr, 'c'},
+		{"cert", required_argument, nullptr, 'c'},
 		
 		// Key
 		{"key", required_argument, nullptr, 'k'},
@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
 				cout << "\t-n, --no_verify\t\tDisables verifying peer when using TLS" << endl;
 				cout << "\t-a, --address\t\tSets address to listen on" << endl;
 				cout << "\t-p, --port\t\tSets port to listen on" << endl;
-				cout << "\t-c, --certificate\tSets the TLS certificate file" << endl;
+				cout << "\t-c, --cert\t\tSets the TLS certificate file" << endl;
 				cout << "\t-k, --key\t\tSets the TLS private key file" << endl;
 				cout << "\t-h, --help\t\tDisplays help information" << endl;
 			
@@ -365,7 +365,7 @@ int main(int argc, char *argv[]) {
 		cout << "\t-n, --no_verify\t\tDisables verifying peer when using TLS" << endl;
 		cout << "\t-a, --address\t\tSets address to listen on" << endl;
 		cout << "\t-p, --port\t\tSets port to listen on" << endl;
-		cout << "\t-c, --certificate\tSets the TLS certificate file" << endl;
+		cout << "\t-c, --cert\t\tSets the TLS certificate file" << endl;
 		cout << "\t-k, --key\t\tSets the TLS private key file" << endl;
 		cout << "\t-h, --help\t\tDisplays help information" << endl;
 	
@@ -634,13 +634,17 @@ int main(int argc, char *argv[]) {
 			// Set request's connection close callback
 			evhttp_connection_set_closecb(evhttp_request_get_connection(request), ([](evhttp_connection *connection, void *argument) {
 			
-				// Check if request's TLS connection exists
-				SSL *requestTlsConnection = bufferevent_openssl_get_ssl(evhttp_connection_get_bufferevent(connection));
-				
-				if(requestTlsConnection) {
-				
-					// Shutdown request's TLS connection
-					SSL_shutdown(requestTlsConnection);
+				// Check if request's buffer event exists
+				bufferevent *bufferEvent = evhttp_connection_get_bufferevent(connection);
+				if(bufferEvent) {
+			
+					// Check if request's TLS connection exists
+					SSL *requestTlsConnection = bufferevent_openssl_get_ssl(bufferEvent);
+					if(requestTlsConnection) {
+					
+						// Shutdown request's TLS connection
+						SSL_shutdown(requestTlsConnection);
+					}
 				}
 				
 			}), nullptr);
