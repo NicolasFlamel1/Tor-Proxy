@@ -1,6 +1,6 @@
 # Program parameters
 NAME = "Tor Proxy"
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 CC = "g++"
 STRIP = "strip"
 CFLAGS = -I "./openssl/dist/include" -I "./libevent" -I "./libevent/dist/include" -I "./tor" -I "./tor/src" -O3 -Wall -std=c++17 -finput-charset=UTF-8 -fexec-charset=UTF-8 -funsigned-char -ffunction-sections -fdata-sections -D PROGRAM_NAME=$(NAME) -D PROGRAM_VERSION=$(VERSION)
@@ -15,7 +15,7 @@ all:
 	
 # Make clean
 clean:
-	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1m.zip" "./openssl-OpenSSL_1_1_1m" "./openssl" "./autoconf-2.71.tar.gz" "./autoconf-2.71" "./automake-1.16.5.tar.gz" "./automake-1.16.5" "./libtool-2.4.6.tar.gz" "./libtool-2.4.6" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.10.zip" "./tor-tor-0.4.6.10" "./tor"
+	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1n.zip" "./openssl-OpenSSL_1_1_1n" "./openssl" "./autoconf-2.71.tar.gz" "./autoconf-2.71" "./automake-1.16.5.tar.gz" "./automake-1.16.5" "./libtool-2.4.7.tar.gz" "./libtool-2.4.7" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.11.zip" "./zlib-1.2.11" "./zlib" "./tor-0.4.6.10.zip" "./tor-tor-0.4.6.10" "./tor"
 
 # Make run
 run:
@@ -25,10 +25,10 @@ run:
 dependencies:
 	
 	# OpenSSL
-	curl -f -LOk "https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1m.zip"
-	unzip "./OpenSSL_1_1_1m.zip"
-	rm "./OpenSSL_1_1_1m.zip"
-	mv "./openssl-OpenSSL_1_1_1m" "./openssl"
+	curl -f -LOk "https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1n.zip"
+	unzip "./OpenSSL_1_1_1n.zip"
+	rm "./OpenSSL_1_1_1n.zip"
+	mv "./openssl-OpenSSL_1_1_1n" "./openssl"
 	cd "./openssl" && "./Configure" darwin64-x86_64-cc --prefix="$(CURDIR)/openssl/dist" --openssldir="/etc/ssl" no-shared no-asm no-dso && sed -i "" -e "s/INSTALLTOP=.*$$/INSTALLTOP=.\/dist/" "./Makefile" && make && make install || true
 	
 	# Libevent
@@ -42,11 +42,11 @@ dependencies:
 	rm "./automake-1.16.5.tar.gz"
 	cd "./automake-1.16.5" && "./configure" && make && sudo make install
 	sudo rm -r "./automake-1.16.5"
-	curl -f -LOk "https://mirrors.kernel.org/gnu/libtool/libtool-2.4.6.tar.gz"
-	tar -xf "./libtool-2.4.6.tar.gz"
-	rm "./libtool-2.4.6.tar.gz"
-	cd "./libtool-2.4.6" && "./configure" && make && sudo make install
-	sudo rm -r "./libtool-2.4.6"
+	curl -f -LOk "https://mirrors.kernel.org/gnu/libtool/libtool-2.4.7.tar.gz"
+	tar -xf "./libtool-2.4.7.tar.gz"
+	rm "./libtool-2.4.7.tar.gz"
+	cd "./libtool-2.4.7" && "./configure" && make && sudo make install
+	sudo rm -r "./libtool-2.4.7"
 	curl -f -LOk "https://github.com/libevent/libevent/archive/refs/tags/release-2.1.12-stable.zip"
 	unzip "./release-2.1.12-stable.zip"
 	rm "./release-2.1.12-stable.zip"
