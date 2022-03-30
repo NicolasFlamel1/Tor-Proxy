@@ -161,6 +161,18 @@ static const decltype(timeval::tv_usec) CHECK_TOR_CONNECTED_INTERVAL_MICROSECOND
 // Temporary directory length
 static const size_t TEMPORARY_DIRECTORY_LENGTH = 8;
 
+// Bytes in a kilobyte
+static const int BYTES_IN_A_KILOBYTE = pow(2, 10);
+
+// Kilobytes in a megabyte
+static const int KILOBYTE_IN_A_MEGABYTE = BYTES_IN_A_KILOBYTE;
+
+// Maximum headers size
+static const size_t MAXIMUM_HEADERS_SIZE = 1 * KILOBYTE_IN_A_MEGABYTE * BYTES_IN_A_KILOBYTE;
+
+// Maximum body size
+static const size_t MAXIMUM_BODY_SIZE = 10 * KILOBYTE_IN_A_MEGABYTE * BYTES_IN_A_KILOBYTE;
+
 // SOCKS state
 enum class SocksState {
 
@@ -548,6 +560,12 @@ int main(int argc, char *argv[]) {
 		// Return failure
 		return EXIT_FAILURE;
 	}
+	
+	// Set HTTP server's maximum header size
+	evhttp_set_max_headers_size(httpServer.get(), MAXIMUM_HEADERS_SIZE);
+	
+	// Set HTTP server's maximum body size
+	evhttp_set_max_body_size(httpServer.get(), MAXIMUM_BODY_SIZE);
 	
 	// Set HTTP server to allow all types of requests
 	evhttp_set_allowed_methods(httpServer.get(), EVHTTP_REQ_GET | EVHTTP_REQ_POST | EVHTTP_REQ_HEAD | EVHTTP_REQ_PUT | EVHTTP_REQ_DELETE | EVHTTP_REQ_OPTIONS | EVHTTP_REQ_TRACE | EVHTTP_REQ_CONNECT | EVHTTP_REQ_PATCH);
