@@ -307,8 +307,8 @@ int main(int argc, char *argv[]) {
 					// Check if port is numeric
 					if(all_of(port.begin(), port.end(), ::isdigit)) {
 					
-						// Initialize error occured
-						bool errorOccured = false;
+						// Initialize error occurred
+						bool errorOccurred = false;
 					
 						// Try
 						int portNumber;
@@ -321,12 +321,12 @@ int main(int argc, char *argv[]) {
 						// Catch errors
 						catch(...) {
 						
-							// Set error occured
-							errorOccured = true;
+							// Set error occurred
+							errorOccurred = true;
 						}
 						
 						// Check if an error didn't occurt
-						if(!errorOccured) {
+						if(!errorOccurred) {
 						
 							// Check if port number is valid
 							if(portNumber >= 1 && portNumber <= UINT16_MAX) {
@@ -1117,8 +1117,8 @@ int main(int argc, char *argv[]) {
 																									// Check if response to the request hasn't been started
 																									if(!evhttp_request_get_response_code(request)) {
 																									
-																										// Initialize error occured
-																										bool errorOccured = false;
+																										// Initialize error occurred
+																										bool errorOccurred = false;
 																									
 																										// Check if outgoing request has headers
 																										evkeyvalq *headers = evhttp_request_get_input_headers(outgoingRequest);
@@ -1151,8 +1151,8 @@ int main(int argc, char *argv[]) {
 																													// Check if setting request's header to the header with the value failed
 																													if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
 																													
-																														// Set error occured
-																														errorOccured = true;
+																														// Set error occurred
+																														errorOccurred = true;
 																													
 																														// Remove all request headers
 																														evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1168,8 +1168,8 @@ int main(int argc, char *argv[]) {
 																													// Check if setting request's header to the header failed
 																													if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																													
-																														// Set error occured
-																														errorOccured = true;
+																														// Set error occurred
+																														errorOccurred = true;
 																													
 																														// Remove all request headers
 																														evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1182,7 +1182,7 @@ int main(int argc, char *argv[]) {
 																										}
 																										
 																										// Check if an error didn't occur
-																										if(!errorOccured) {
+																										if(!errorOccurred) {
 																									
 																											// Set request's outgoing data to be the outgoing request's incomming data
 																											evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
@@ -1393,7 +1393,7 @@ int main(int argc, char *argv[]) {
 																						// Set outgoing request error callback
 																						evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
 																						
-																							// Check if timeout occured
+																							// Check if timeout occurred
 																							if(error == EVREQ_HTTP_TIMEOUT) {
 																							
 																								// Get outgoing request callback argument from argument
@@ -1421,7 +1421,7 @@ int main(int argc, char *argv[]) {
 																								requestFinished.release();
 																							}
 																							
-																							// Otherwise check if cancel occured
+																							// Otherwise check if cancel occurred
 																							else if(error == EVREQ_HTTP_REQUEST_CANCEL) {
 																							
 																								// Get outgoing request callback argument from argument
@@ -1674,8 +1674,8 @@ int main(int argc, char *argv[]) {
 																					// Check if response to the request hasn't been started
 																					if(!evhttp_request_get_response_code(request)) {
 																					
-																						// Initialize error occured
-																						bool errorOccured = false;
+																						// Initialize error occurred
+																						bool errorOccurred = false;
 																					
 																						// Check if outgoing request has headers
 																						evkeyvalq *headers = evhttp_request_get_input_headers(outgoingRequest);
@@ -1708,8 +1708,8 @@ int main(int argc, char *argv[]) {
 																									// Check if setting request's header to the header with the value failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, value.c_str())) {
 																									
-																										// Set error occured
-																										errorOccured = true;
+																										// Set error occurred
+																										errorOccurred = true;
 																									
 																										// Remove all request headers
 																										evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1725,8 +1725,8 @@ int main(int argc, char *argv[]) {
 																									// Check if setting request's header to the header failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																									
-																										// Set error occured
-																										errorOccured = true;
+																										// Set error occurred
+																										errorOccurred = true;
 																									
 																										// Remove all request headers
 																										evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1739,7 +1739,7 @@ int main(int argc, char *argv[]) {
 																						}
 																						
 																						// Check if an error didn't occur
-																						if(!errorOccured) {
+																						if(!errorOccurred) {
 																					
 																							// Set request's outgoing data to be the outgoing request's incomming data
 																							evbuffer_add_buffer(evhttp_request_get_output_buffer(request), evhttp_request_get_input_buffer(outgoingRequest));
@@ -1912,7 +1912,7 @@ int main(int argc, char *argv[]) {
 																		// Set outgoing request error callback
 																		evhttp_request_set_error_cb(outgoingRequest.get(), ([](evhttp_request_error error, void *argument) {
 																		
-																			// Check if timeout occured
+																			// Check if timeout occurred
 																			if(error == EVREQ_HTTP_TIMEOUT) {
 																			
 																				// Get outgoing request callback argument from argument
@@ -2488,8 +2488,8 @@ int main(int argc, char *argv[]) {
 										// Initialize port number
 										int portNumber;
 										
-										// Initialize error occured
-										bool errorOccured = false;
+										// Initialize error occurred
+										bool errorOccurred = false;
 										
 										// Try
 										try {
@@ -2504,8 +2504,8 @@ int main(int argc, char *argv[]) {
 											// Display message
 											cout << "SOCKS port is invalid" << endl;
 											
-											// Set error occured
-											errorOccured = true;
+											// Set error occurred
+											errorOccurred = true;
 											
 											// Remove Tor connection callbacks
 											bufferevent_setcb(torConnection, nullptr, nullptr, nullptr, nullptr);
@@ -2515,7 +2515,7 @@ int main(int argc, char *argv[]) {
 										}
 										
 										// Check if an error didn't occur
-										if(!errorOccured) {
+										if(!errorOccurred) {
 										
 											// Check if port number is invalid
 											if(portNumber < 1 || portNumber > UINT16_MAX) {
@@ -2788,8 +2788,8 @@ int main(int argc, char *argv[]) {
 	// Otherwise
 	else {
 	
-		// Initialize error occured
-		bool errorOccured = false;
+		// Initialize error occurred
+		bool errorOccurred = false;
 	
 		// Check if Tor thread is joinable
 		if(torThread.joinable()) {
@@ -2807,8 +2807,8 @@ int main(int argc, char *argv[]) {
 				// Display message
 				cout << "Joining Tor thread failed" << endl;
 			
-				// Set error occured
-				errorOccured = true;
+				// Set error occurred
+				errorOccurred = true;
 				
 				// Remove temporary directory
 				filesystem::remove_all(temporaryDirectory);
@@ -2819,9 +2819,9 @@ int main(int argc, char *argv[]) {
 		}
 		
 		// Check if an error didn't occur
-		if(!errorOccured) {
+		if(!errorOccurred) {
 		
-			// Check if a thread error occured
+			// Check if a thread error occurred
 			if(threadError.load()) {
 			
 				// Remove temporary directory

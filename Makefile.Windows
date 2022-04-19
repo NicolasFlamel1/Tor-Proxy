@@ -1,6 +1,6 @@
 # Program parameters
 NAME = "Tor Proxy"
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 CC = "x86_64-w64-mingw32-g++-posix"
 STRIP = "x86_64-w64-mingw32-strip"
 CFLAGS = -I "./openssl/dist/include" -I "./libevent" -I "./libevent/compat" -I "./libevent/dist/include" -I "./tor" -I "./tor/src" -static-libstdc++ -static-libgcc -O3 -Wall -std=c++17 -finput-charset=UTF-8 -fexec-charset=UTF-8 -funsigned-char -ffunction-sections -fdata-sections -D PROGRAM_NAME=$(NAME) -D PROGRAM_VERSION=$(VERSION)
