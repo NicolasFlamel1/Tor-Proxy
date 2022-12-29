@@ -43,7 +43,7 @@ dependencies:
 	unzip "./v1.2.12.zip"
 	rm "./v1.2.12.zip"
 	mv "./zlib-1.2.12" "./zlib"
-	cd "./zlib" && sed -i "s/PREFIX =/PREFIX = x86_64-w64-mingw32-\nBINARY_PATH = .\/dist\/bin\nINCLUDE_PATH = .\/dist\/include\nLIBRARY_PATH = .\/dist\/lib/" "./win32/Makefile.gcc" && make -f win32/Makefile.gcc && sed -i "s/$$(PREFIX)gcc/\$$(PREFIX)gcc-posix/" "./win32/Makefile.gcc" && make -f win32/Makefile.gcc install
+	cd "./zlib" && sed -i "s/PREFIX =/PREFIX = x86_64-w64-mingw32-\nBINARY_PATH = .\/dist\/bin\nINCLUDE_PATH = .\/dist\/include\nLIBRARY_PATH = .\/dist\/lib/" "./win32/Makefile.gcc" && make -f "./win32/Makefile.gcc" && sed -i "s/$$(PREFIX)gcc/\$$(PREFIX)gcc-posix/" "./win32/Makefile.gcc" && make -f "./win32/Makefile.gcc" install
 	
 	# Tor
 	wget "https://github.com/torproject/tor/archive/refs/tags/tor-0.4.7.7.zip";
