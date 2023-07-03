@@ -15,7 +15,7 @@ all:
 	
 # Make clean
 clean:
-	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1s.zip" "./openssl-OpenSSL_1_1_1s" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.13.zip" "./zlib-1.2.13" "./zlib" "./tor-0.4.7.13.zip" "./tor-tor-0.4.7.13" "./tor"
+	rm -rf "./$(PROGRAM_NAME)" "./OpenSSL_1_1_1u.zip" "./openssl-OpenSSL_1_1_1u" "./openssl" "./release-2.1.12-stable.zip" "./libevent-release-2.1.12-stable" "./libevent" "./v1.2.13.zip" "./zlib-1.2.13" "./zlib" "./tor-0.4.7.13.zip" "./tor-tor-0.4.7.13" "./tor"
 
 # Make run
 run:
@@ -25,10 +25,10 @@ run:
 dependencies:
 	
 	# OpenSSL
-	wget "https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.zip"
-	unzip "./OpenSSL_1_1_1s.zip"
-	rm "./OpenSSL_1_1_1s.zip"
-	mv "./openssl-OpenSSL_1_1_1s" "./openssl"
+	wget "https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1u.zip"
+	unzip "./OpenSSL_1_1_1u.zip"
+	rm "./OpenSSL_1_1_1u.zip"
+	mv "./openssl-OpenSSL_1_1_1u" "./openssl"
 	cd "./openssl" && "./config" --prefix="$(CURDIR)/openssl/dist" --openssldir=$(shell openssl version -d | awk '{print $$2}') no-shared no-asm no-dso && sed -i "s/INSTALLTOP=.*$$/INSTALLTOP=.\/dist/" "./Makefile" && make && make install || true
 	
 	# Libevent
