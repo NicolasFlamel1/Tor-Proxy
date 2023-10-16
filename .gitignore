@@ -1,14 +1,14 @@
-OpenSSL_1_1_1u.zip
-openssl-OpenSSL_1_1_1u
+openssl-3.1.3.tar.gz
+openssl-3.1.3
 openssl
-release-2.1.12-stable.zip
-libevent-release-2.1.12-stable
+libevent-2.2.1-alpha-dev.tar.gz
+libevent-2.2.1-alpha-dev
 libevent
-v1.2.13.zip
-zlib-1.2.13
+zlib-1.3.tar.gz
+zlib-1.3
 zlib
-tor-0.4.7.13.zip
-tor-tor-0.4.7.13
+tor-tor-0.4.8.7.zip
+tor-tor-0.4.8.7
 tor
 autoconf-2.71.tar.gz
 autoconf-2.71
@@ -16,5 +16,7 @@ automake-1.16.5.tar.gz
 automake-1.16.5
 libtool-2.4.7.tar.gz
 libtool-2.4.7
+pkg-config-0.29.2.tar.gz
+pkg-config-0.29.2
 Tor Proxy
 Tor Proxy.exe
