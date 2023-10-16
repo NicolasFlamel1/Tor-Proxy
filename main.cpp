@@ -1162,7 +1162,7 @@ int main(int argc, char *argv[]) {
 																				else {
 																				
 																					// Check if creating outgoing request callback argument failed
-																					unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>>(request, listenAddress, listenPort, usingTlsServer, uri.get(), socksConnection.get(), requestFinished.get());
+																					unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument = make_unique<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>>(request, listenAddress, listenPort, usingTlsServer, requestFinished.get());
 																					if(!outgoingRequestCallbackArgument) {
 																					
 																						// Reply with internal server error to request
@@ -1176,7 +1176,7 @@ int main(int argc, char *argv[]) {
 																						unique_ptr<evhttp_request, decltype(&evhttp_request_free)> outgoingRequest(evhttp_request_new(([](evhttp_request *outgoingRequest, void *argument) {
 																						
 																							// Get outgoing request callback argument from argument
-																							unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																							unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																							
 																							// Get request from outgoing request callback argument
 																							evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -1190,14 +1190,8 @@ int main(int argc, char *argv[]) {
 																							// Get using TLS server from outgoing request callback argument
 																							const bool *usingTlsServer = get<3>(*outgoingRequestCallbackArgument);
 																							
-																							// Get URI from outgoing request callback argument
-																							unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)> uri(get<4>(*outgoingRequestCallbackArgument), evhttp_uri_free);
-																							
-																							// Get SOCKS connection from outgoing request callback argument
-																							unique_ptr<evhttp_connection, decltype(&evhttp_connection_free)> socksConnection(get<5>(*outgoingRequestCallbackArgument), evhttp_connection_free);
-																							
 																							// Get request finished from outgoing request callback argument
-																							unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																							unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																							
 																							// Check if outgoing request exists
 																							if(outgoingRequest) {
@@ -1343,7 +1337,7 @@ int main(int argc, char *argv[]) {
 																							evhttp_request_set_chunked_cb(outgoingRequest.get(), ([](evhttp_request *outgoingRequest, void *argument) {
 																							
 																								// Get outgoing request callback argument from argument
-																								unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																								unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																								
 																								// Get request from outgoing request callback argument
 																								evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
@@ -1358,7 +1352,7 @@ int main(int argc, char *argv[]) {
 																								const bool *usingTlsServer = get<3>(*outgoingRequestCallbackArgument);
 																								
 																								// Get request finished from outgoing request callback argument
-																								unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																								unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																								
 																								// Check if request isn't finished
 																								if(!*requestFinished) {
@@ -1471,13 +1465,13 @@ int main(int argc, char *argv[]) {
 																								if(error == EVREQ_HTTP_TIMEOUT) {
 																								
 																									// Get outgoing request callback argument from argument
-																									unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, evhttp_uri *, evhttp_connection *, bool *> *>(argument));
+																									unique_ptr<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *>> outgoingRequestCallbackArgument(reinterpret_cast<tuple<evhttp_request *, const string *, const uint16_t *, const bool *, bool *> *>(argument));
 																									
 																									// Get request from outgoing request callback argument
 																									evhttp_request *request = get<0>(*outgoingRequestCallbackArgument);
 																									
 																									// Get request finished from outgoing request callback argument
-																									unique_ptr<bool> requestFinished(get<6>(*outgoingRequestCallbackArgument));
+																									unique_ptr<bool> requestFinished(get<4>(*outgoingRequestCallbackArgument));
 																									
 																									// Remove all request headers
 																									evhttp_clear_headers(evhttp_request_get_output_headers(request));
@@ -1556,9 +1550,6 @@ int main(int argc, char *argv[]) {
 																									// Otherwise
 																									else {
 																									
-																										// Release URI
-																										uri.release();
-																										
 																										// Release ownership of the SOCKS connection
 																										evhttp_connection_free_on_completion(socksConnection.get());
 																									
@@ -1793,7 +1784,7 @@ int main(int argc, char *argv[]) {
 																	// Otherwise
 																	else {
 																	
-																		// Outgoing request chunk callback
+																		// Set outgoing request chunk callback
 																		evhttp_request_set_chunked_cb(outgoingRequest.get(), ([](evhttp_request *outgoingRequest, void *argument) {
 																		
 																			// Get outgoing request callback argument from argument
@@ -1949,7 +1940,7 @@ int main(int argc, char *argv[]) {
 																				requestFinished.release();
 																			}
 																		}));
-																	
+																		
 																		// Check if setting outgoing request's host header failed
 																		if(evhttp_add_header(evhttp_request_get_output_headers(outgoingRequest.get()), "Host", (evhttp_uri_get_host(uri.get()) + ((evhttp_uri_get_port(uri.get()) != NO_URI_PORT) ? ':' + to_string(evhttp_uri_get_port(uri.get())) : "")).c_str())) {
 																		
