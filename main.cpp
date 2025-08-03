@@ -1253,9 +1253,26 @@ int main(int argc, char *argv[]) {
 																														}
 																													}
 																													
-																													// Otherwise
-																													else {
-																												
+																													// Otherwise check if header isn't CORS private network
+																													else if(strcasecmp(header->key, "Access-Control-Allow-Private-Network")) {
+																													
+																														// Check if header is a CORS origin header
+																														if(!strcasecmp(header->key, "Access-Control-Allow-Origin")) {
+																														
+																															// Check if setting request's CORS private network header failed
+																															if(evhttp_add_header(evhttp_request_get_output_headers(request), "Access-Control-Allow-Private-Network", "true")) {
+																															
+																																// Set error occurred
+																																errorOccurred = true;
+																															
+																																// Remove all request headers
+																																evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																																
+																																// Reply with internal server error to request
+																																evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																															}
+																														}
+																														
 																														// Check if setting request's header to the header failed
 																														if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																														
@@ -1417,26 +1434,56 @@ int main(int argc, char *argv[]) {
 																													// Otherwise check if header isn't chunked transfer encoding
 																													else if(strcasecmp(header->key, "Transfer-Encoding") || strcasecmp(header->value, "chunked")) {
 																												
-																														// Check if setting request's header to the header failed
-																														if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
+																														// Check if header isn't CORS private network
+																														if(strcasecmp(header->key, "Access-Control-Allow-Private-Network")) {
 																														
-																															// Remove all request headers
-																															evhttp_clear_headers(evhttp_request_get_output_headers(request));
-																														
-																															// Reply with internal server error to request
-																															evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																															// Check if header is a CORS origin header
+																															if(!strcasecmp(header->key, "Access-Control-Allow-Origin")) {
 																															
-																															// Set that request is finished
-																															*requestFinished = true;
+																																// Check if setting request's CORS private network header failed
+																																if(evhttp_add_header(evhttp_request_get_output_headers(request), "Access-Control-Allow-Private-Network", "true")) {
+																																
+																																	// Remove all request headers
+																																	evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																																
+																																	// Reply with internal server error to request
+																																	evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																																	
+																																	// Set that request is finished
+																																	*requestFinished = true;
+																																	
+																																	// Release outgoing request callback argument
+																																	outgoingRequestCallbackArgument.release();
+																																	
+																																	// Release request finished
+																																	requestFinished.release();
+																																	
+																																	// Return
+																																	return;
+																																}
+																															}
 																															
-																															// Release outgoing request callback argument
-																															outgoingRequestCallbackArgument.release();
+																															// Check if setting request's header to the header failed
+																															if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																															
-																															// Release request finished
-																															requestFinished.release();
+																																// Remove all request headers
+																																evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																															
-																															// Return
-																															return;
+																																// Reply with internal server error to request
+																																evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																																
+																																// Set that request is finished
+																																*requestFinished = true;
+																																
+																																// Release outgoing request callback argument
+																																outgoingRequestCallbackArgument.release();
+																																
+																																// Release request finished
+																																requestFinished.release();
+																																
+																																// Return
+																																return;
+																															}
 																														}
 																													}
 																												}
@@ -1704,8 +1751,25 @@ int main(int argc, char *argv[]) {
 																									}
 																								}
 																								
-																								// Otherwise
-																								else {
+																								// Otherwise check if header isn't CORS private network
+																								else if(strcasecmp(header->key, "Access-Control-Allow-Private-Network")) {
+																								
+																									// Check if header is a CORS origin header
+																									if(!strcasecmp(header->key, "Access-Control-Allow-Origin")) {
+																									
+																										// Check if setting request's CORS private network header failed
+																										if(evhttp_add_header(evhttp_request_get_output_headers(request), "Access-Control-Allow-Private-Network", "true")) {
+																										
+																											// Set error occurred
+																											errorOccurred = true;
+																										
+																											// Remove all request headers
+																											evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																											
+																											// Reply with internal server error to request
+																											evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																										}
+																									}
 																							
 																									// Check if setting request's header to the header failed
 																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
@@ -1868,26 +1932,56 @@ int main(int argc, char *argv[]) {
 																								// Otherwise check if header isn't chunked transfer encoding
 																								else if(strcasecmp(header->key, "Transfer-Encoding") || strcasecmp(header->value, "chunked")) {
 																							
-																									// Check if setting request's header to the header failed
-																									if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
+																									// Check if header isn't CORS private network
+																									if(strcasecmp(header->key, "Access-Control-Allow-Private-Network")) {
 																									
-																										// Remove all request headers
-																										evhttp_clear_headers(evhttp_request_get_output_headers(request));
-																									
-																										// Reply with internal server error to request
-																										evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																										// Check if header is a CORS origin header
+																										if(!strcasecmp(header->key, "Access-Control-Allow-Origin")) {
 																										
-																										// Set that request is finished
-																										*requestFinished = true;
+																											// Check if setting request's CORS private network header failed
+																											if(evhttp_add_header(evhttp_request_get_output_headers(request), "Access-Control-Allow-Private-Network", "true")) {
+																											
+																												// Remove all request headers
+																												evhttp_clear_headers(evhttp_request_get_output_headers(request));
+																											
+																												// Reply with internal server error to request
+																												evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																												
+																												// Set that request is finished
+																												*requestFinished = true;
+																												
+																												// Release outgoing request callback argument
+																												outgoingRequestCallbackArgument.release();
+																												
+																												// Release request finished
+																												requestFinished.release();
+																												
+																												// Return
+																												return;
+																											}
+																										}
 																										
-																										// Release outgoing request callback argument
-																										outgoingRequestCallbackArgument.release();
+																										// Check if setting request's header to the header failed
+																										if(evhttp_add_header(evhttp_request_get_output_headers(request), header->key, header->value)) {
 																										
-																										// Release request finished
-																										requestFinished.release();
+																											// Remove all request headers
+																											evhttp_clear_headers(evhttp_request_get_output_headers(request));
 																										
-																										// Return
-																										return;
+																											// Reply with internal server error to request
+																											evhttp_send_reply(request, HTTP_INTERNAL, nullptr, nullptr);
+																											
+																											// Set that request is finished
+																											*requestFinished = true;
+																											
+																											// Release outgoing request callback argument
+																											outgoingRequestCallbackArgument.release();
+																											
+																											// Release request finished
+																											requestFinished.release();
+																											
+																											// Return
+																											return;
+																										}
 																									}
 																								}
 																							}
