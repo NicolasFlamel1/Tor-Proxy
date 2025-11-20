@@ -1,6 +1,6 @@
 # Program parameters
 NAME = "Tor Proxy"
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 CC = "g++"
 STRIP = "strip"
 CFLAGS = -I "./openssl/dist/include" -I "./libevent" -I "./libevent/dist/include" -I "./tor" -I "./tor/src" -O3 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -std=c++17 -finput-charset=UTF-8 -fexec-charset=UTF-8 -funsigned-char -ffunction-sections -fdata-sections -D PROGRAM_NAME=$(NAME) -D PROGRAM_VERSION=$(VERSION)
@@ -50,7 +50,7 @@ dependencies:
 	curl -f -LOk "https://pkgconfig.freedesktop.org/releases/pkg-config-0.29.2.tar.gz"
 	tar -xf "./pkg-config-0.29.2.tar.gz"
 	rm "./pkg-config-0.29.2.tar.gz"
-	cd "./pkg-config-0.29.2" && "./configure" --with-internal-glib CFLAGS="Wno-int-conversion" && make && sudo make install
+	cd "./pkg-config-0.29.2" && "./configure" --with-internal-glib CFLAGS="-Wno-int-conversion" && make && sudo make install
 	sudo rm -r "./pkg-config-0.29.2"
 	curl -f -LOk "https://github.com/libevent/libevent/releases/download/release-2.2.1-alpha/libevent-2.2.1-alpha-dev.tar.gz"
 	tar -xf "./libevent-2.2.1-alpha-dev.tar.gz"
